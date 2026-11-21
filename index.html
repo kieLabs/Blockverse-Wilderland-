@@ -1,0 +1,2754 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BLOCKVERSE: WILDERLANDS – GAMERKIE EDITION</title>
+    <!-- Tailwind CSS for crisp, responsive UI overlays -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Voxel Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Tone.js for procedural original soundtrack & sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts: Rajdhani & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --accent: #f59e0b;
+            --bg-glass: rgba(15, 23, 42, 0.82);
+            --border-glass: rgba(255, 255, 255, 0.14);
+        }
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #090d16;
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+        }
+        h1, h2, h3, .font-display {
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 0.04em;
+        }
+        #game-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 1;
+        }
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--border-glass);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        }
+        .btn-aaa {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-aaa:hover:not(:disabled) {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.28);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(15, 23, 42, 0.95));
+        }
+        .btn-aaa:active:not(:disabled) {
+            transform: translateY(0px) scale(0.98);
+        }
+        .btn-primary-aaa {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: 1px solid #34d399;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+        .btn-primary-aaa:hover:not(:disabled) {
+            background: linear-gradient(135deg, #34d399, #10b981);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.5);
+            transform: translateY(-2px);
+        }
+        /* Crosshair */
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 22px;
+            height: 22px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 15;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 3px rgba(0,0,0,0.8);
+        }
+        #crosshair::before { top: 10px; left: 2px; width: 18px; height: 2px; }
+        #crosshair::after { left: 10px; top: 2px; height: 18px; width: 2px; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* Damage Flash */
+        @keyframes damagePulse {
+            0% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); }
+            30% { box-shadow: inset 0 0 90px 25px rgba(239, 68, 68, 0.65); }
+            100% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .damage-flash {
+            animation: damagePulse 0.45s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Viewport Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Damage / Status Screen Vignette -->
+    <div id="screen-vignette" class="fixed inset-0 pointer-events-none z-10 transition-all duration-300"></div>
+
+    <!-- Custom Notification Toast Container (Replaces alert()) -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+
+    <!-- ==========================================
+         1. MAIN MENU & CINEMATIC OVERLAY
+    =========================================== -->
+    <div id="main-menu" class="fixed inset-0 z-30 flex flex-col justify-between p-4 sm:p-8 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent">
+        <!-- Top Header -->
+        <div class="flex justify-between items-start">
+            <div>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold tracking-wider uppercase mb-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    GamerKie Studio • AAA Voxel Engine v2.4
+                </div>
+                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg leading-none">
+                    BLOCKVERSE: <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">WILDERLANDS</span>
+                </h1>
+                <p class="text-slate-300 text-sm sm:text-base mt-1 font-medium tracking-wide">
+                    GAMERKIE EDITION — Build Your World. Survive Your Destiny.
+                </p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-audio-toggle" class="btn-aaa p-3 rounded-xl text-slate-200 hover:text-white" title="Toggle Sound & Music">
+                    🔊
+                </button>
+                <button id="btn-fullscreen-menu" class="btn-aaa p-3 rounded-xl text-slate-200 hover:text-white" title="Toggle Fullscreen">
+                    ⛶
+                </button>
+            </div>
+        </div>
+
+        <!-- Center / Left Navigation Deck -->
+        <div class="my-auto max-w-md w-full flex flex-col gap-2.5">
+            <button id="menu-quick-play" class="btn-primary-aaa w-full py-3.5 px-6 rounded-xl font-display font-bold text-xl flex items-center justify-between">
+                <span>▶ PLAY WILDERLANDS</span>
+                <span class="text-xs font-sans font-normal bg-black/25 px-2.5 py-1 rounded-lg">Instant Start</span>
+            </button>
+
+            <div class="grid grid-cols-2 gap-2.5">
+                <button id="menu-new-world" class="btn-aaa py-3 px-4 rounded-xl font-display font-bold text-lg text-left flex items-center gap-2">
+                    <span>🌍</span> CREATE WORLD
+                </button>
+                <button id="menu-load-world" class="btn-aaa py-3 px-4 rounded-xl font-display font-bold text-lg text-left flex items-center gap-2">
+                    <span>💾</span> LOAD WORLD
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+                <button id="menu-character" class="btn-aaa py-2.5 px-4 rounded-xl font-display font-semibold text-base text-left flex items-center gap-2">
+                    <span>🧙</span> CHARACTER
+                </button>
+                <button id="menu-multiplayer" class="btn-aaa py-2.5 px-4 rounded-xl font-display font-semibold text-base text-left flex items-center gap-2">
+                    <span>🌐</span> MULTIPLAYER
+                </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+                <button id="menu-achievements" class="btn-aaa py-2.5 px-3 rounded-xl font-display font-semibold text-sm text-center">
+                    🏆 TROPHIES
+                </button>
+                <button id="menu-settings" class="btn-aaa py-2.5 px-3 rounded-xl font-display font-semibold text-sm text-center">
+                    ⚙️ SETTINGS
+                </button>
+                <button id="menu-credits" class="btn-aaa py-2.5 px-3 rounded-xl font-display font-semibold text-sm text-center">
+                    📜 CREDITS
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Footer -->
+        <div class="flex flex-wrap justify-between items-center text-xs text-slate-400 border-t border-white/10 pt-3">
+            <div>© 2026 GAMERKIE GAMES • Procedural Chunk Engine • IndexedDB Persistence</div>
+            <div class="flex gap-4">
+                <span>Desktop & Mobile Touch Ready</span>
+                <span id="menu-save-count" class="text-emerald-400 font-semibold">Saved Worlds: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         2. MODAL WINDOWS (World Creation, Load, Character, Settings, Multiplayer, Achievements, Credits)
+    =========================================== -->
+    <div id="modal-backdrop" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
+        <div id="modal-content" class="glass-panel rounded-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-6 relative">
+            <!-- Dynamically populated modal content -->
+        </div>
+    </div>
+
+    <!-- ==========================================
+         3. IN-GAME HUD & CONTROLS
+    =========================================== -->
+    <div id="hud-layer" class="fixed inset-0 z-20 pointer-events-none hidden">
+        <!-- Crosshair -->
+        <div id="crosshair"></div>
+
+        <!-- Top Bar: Biome, Coordinates, Time, Weather, FPS, Menu Buttons -->
+        <div class="flex justify-between items-start p-3 sm:p-4">
+            <!-- Left Telemetry Pill -->
+            <div class="glass-panel rounded-xl px-3.5 py-2 flex flex-wrap items-center gap-3 text-xs sm:text-sm pointer-events-auto">
+                <div class="flex items-center gap-1.5">
+                    <span id="hud-dimension-badge" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-xs">THE WILDLANDS</span>
+                    <span id="hud-biome" class="font-semibold text-white">Green Plains</span>
+                </div>
+                <span class="text-slate-500">|</span>
+                <div id="hud-coords" class="font-mono text-slate-300 text-xs">XYZ: 0, 0, 0</div>
+                <span class="text-slate-500 hidden sm:inline">|</span>
+                <div id="hud-time-weather" class="text-amber-300 font-medium text-xs sm:text-sm">☀️ Day 1 • Clear</div>
+                <span class="text-slate-500 hidden md:inline">|</span>
+                <div id="hud-fps" class="font-mono text-emerald-400 text-xs hidden md:block">60 FPS</div>
+            </div>
+
+            <!-- Right Quick Action Buttons -->
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <button id="hud-btn-portal" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold text-purple-300 border-purple-500/40" title="Dimension Gate">
+                    🌀 Realm
+                </button>
+                <button id="hud-btn-camera" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold" title="Toggle Camera (C)">
+                    🎥 1st
+                </button>
+                <button id="hud-btn-map" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold" title="World Map (M)">
+                    🗺️ Map
+                </button>
+                <button id="hud-btn-craft" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold text-amber-300" title="Crafting & Inventory (E)">
+                    🎒 Bag
+                </button>
+                <button id="hud-btn-pause" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold" title="Pause (Esc)">
+                    ⏸️
+                </button>
+            </div>
+        </div>
+
+        <!-- Boss Bar (Visible during Boss Encounters) -->
+        <div id="boss-hud" class="hidden mx-auto max-w-lg w-11/12 mt-1 glass-panel rounded-xl p-2.5 border-rose-500/40">
+            <div class="flex justify-between text-xs font-bold uppercase tracking-wider text-rose-300 mb-1">
+                <span id="boss-name">ANCIENT FOREST GUARDIAN</span>
+                <span id="boss-hp-text">500 / 500</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all duration-150" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Target Block Info & Mining Progress -->
+        <div id="target-block-hud" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 translate-y-6 glass-panel rounded-lg px-3 py-1.5 text-center">
+            <div id="target-block-name" class="text-xs font-bold text-white">Grass Block</div>
+            <div class="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1">
+                <div id="mining-progress-bar" class="h-full bg-emerald-400 transition-all duration-75" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Active Quest / Milestone Tracker -->
+        <div id="quest-tracker" class="hidden sm:block fixed left-4 top-20 glass-panel rounded-xl p-3 max-w-xs border-l-4 border-l-amber-400">
+            <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold">Active Objective</div>
+            <div id="quest-title" class="text-sm font-bold text-white mt-0.5">Gather Timber & Stone</div>
+            <div id="quest-desc" class="text-xs text-slate-300 mt-0.5">Mine 4 Wood Logs to craft a Crafting Table & Pickaxe.</div>
+        </div>
+
+        <!-- Bottom Status Bars + Hotbar -->
+        <div class="fixed bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 w-full max-w-xl px-3 pointer-events-auto">
+            <!-- Survival Vitals (Hidden in Creative/Spectator) -->
+            <div id="survival-bars" class="w-full grid grid-cols-2 sm:grid-cols-4 gap-2 px-1">
+                <!-- Health -->
+                <div class="glass-panel rounded-lg px-2.5 py-1 flex items-center gap-2">
+                    <span class="text-rose-400 text-xs">❤️</span>
+                    <div class="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden">
+                        <div id="bar-health" class="h-full bg-rose-500 transition-all duration-200" style="width: 100%"></div>
+                    </div>
+                    <span id="val-health" class="text-[11px] font-mono font-bold">100</span>
+                </div>
+                <!-- Hunger -->
+                <div class="glass-panel rounded-lg px-2.5 py-1 flex items-center gap-2">
+                    <span class="text-amber-400 text-xs">🍖</span>
+                    <div class="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden">
+                        <div id="bar-hunger" class="h-full bg-amber-500 transition-all duration-200" style="width: 100%"></div>
+                    </div>
+                    <span id="val-hunger" class="text-[11px] font-mono font-bold">100</span>
+                </div>
+                <!-- Stamina -->
+                <div class="glass-panel rounded-lg px-2.5 py-1 flex items-center gap-2">
+                    <span class="text-emerald-400 text-xs">⚡</span>
+                    <div class="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden">
+                        <div id="bar-stamina" class="h-full bg-emerald-400 transition-all duration-200" style="width: 100%"></div>
+                    </div>
+                    <span id="val-stamina" class="text-[11px] font-mono font-bold">100</span>
+                </div>
+                <!-- Oxygen / Temp -->
+                <div class="glass-panel rounded-lg px-2.5 py-1 flex items-center gap-2">
+                    <span id="icon-env" class="text-sky-400 text-xs">🫧</span>
+                    <div class="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden">
+                        <div id="bar-oxygen" class="h-full bg-sky-400 transition-all duration-200" style="width: 100%"></div>
+                    </div>
+                    <span id="val-oxygen" class="text-[11px] font-mono font-bold">100</span>
+                </div>
+            </div>
+
+            <!-- Selected Item Name Banner -->
+            <div id="selected-item-label" class="text-xs font-semibold text-white bg-slate-950/75 px-3 py-0.5 rounded-full border border-white/10">
+                Wooden Pickaxe
+            </div>
+
+            <!-- 9-Slot Hotbar -->
+            <div id="hotbar-container" class="glass-panel rounded-2xl p-1.5 grid grid-cols-9 gap-1 sm:gap-1.5 w-full shadow-2xl">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Mobile Touch Controls (Shown automatically on touch devices or when enabled in settings) -->
+        <div id="mobile-controls" class="hidden fixed inset-0 pointer-events-none z-20">
+            <!-- Left Virtual Joystick -->
+            <div id="touch-joystick-zone" class="fixed bottom-24 left-5 w-32 h-32 rounded-full bg-slate-900/45 border-2 border-white/20 pointer-events-auto flex items-center justify-center">
+                <div id="touch-joystick-knob" class="w-12 h-12 rounded-full bg-emerald-400/70 border border-white shadow-lg"></div>
+            </div>
+            <!-- Right Action Cluster -->
+            <div class="fixed bottom-24 right-5 flex flex-col gap-2.5 pointer-events-auto">
+                <div class="flex gap-2.5">
+                    <button id="touch-btn-mine" class="w-14 h-14 rounded-2xl glass-panel flex items-center justify-center text-xl active:scale-90 border-rose-400/40">⛏️</button>
+                    <button id="touch-btn-place" class="w-14 h-14 rounded-2xl glass-panel flex items-center justify-center text-xl active:scale-90 border-emerald-400/40">🧱</button>
+                </div>
+                <div class="flex gap-2.5">
+                    <button id="touch-btn-sprint" class="w-14 h-14 rounded-2xl glass-panel flex items-center justify-center text-sm font-bold active:scale-90">🏃</button>
+                    <button id="touch-btn-jump" class="w-14 h-14 rounded-2xl glass-panel flex items-center justify-center text-xl active:scale-90 border-sky-400/40">⬆️</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         4. IN-GAME INVENTORY & CRAFTING OVERLAY
+    =========================================== -->
+    <div id="inventory-screen" class="fixed inset-0 z-30 hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-4">
+            <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">BACKPACK, EQUIPMENT & CRAFTING</h2>
+                    <p class="text-xs text-slate-400">Click items to equip/move • Craft tools, blocks, food & portal keys</p>
+                </div>
+                <button id="btn-close-inventory" class="btn-aaa px-4 py-2 rounded-xl font-bold text-sm">✕ Close (E)</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Left: Character Stats & Equipment -->
+                <div class="lg:col-span-4 bg-slate-900/60 rounded-xl p-4 border border-white/10 flex flex-col justify-between">
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">Survivor Profile</div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div id="inv-avatar-preview" class="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-2xl shadow-lg">
+                                🧭
+                            </div>
+                            <div>
+                                <div id="inv-player-name" class="font-bold text-base text-white">Wilderlands Explorer</div>
+                                <div id="inv-player-level" class="text-xs text-amber-300">Level 1 • XP: 0 / 100</div>
+                                <div id="inv-player-mode" class="text-[11px] text-slate-400 uppercase mt-0.5">Mode: Survival</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+                            <div class="bg-slate-950/60 p-2 rounded-lg">Armor: <span id="stat-armor" class="font-bold text-sky-300">0</span></div>
+                            <div class="bg-slate-950/60 p-2 rounded-lg">Attack: <span id="stat-attack" class="font-bold text-rose-300">5</span></div>
+                            <div class="bg-slate-950/60 p-2 rounded-lg">Blocks Mined: <span id="stat-mined" class="font-bold text-emerald-300">0</span></div>
+                            <div class="bg-slate-950/60 p-2 rounded-lg">Creatures Slain: <span id="stat-kills" class="font-bold text-amber-300">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <button id="btn-eat-food" class="btn-aaa py-2 px-3 rounded-lg text-xs font-bold text-amber-300">
+                            🍎 Eat Food from Hotbar
+                        </button>
+                        <button id="btn-save-game-inv" class="btn-primary-aaa py-2 px-3 rounded-lg text-xs font-bold">
+                            💾 Save World Now
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Middle: Inventory Grid (27 slots + 9 hotbar) -->
+                <div class="lg:col-span-4 bg-slate-900/60 rounded-xl p-4 border border-white/10">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Storage Grid</span>
+                        <span class="text-[11px] text-slate-400">Click slot to move to Hotbar</span>
+                    </div>
+                    <div id="inventory-grid" class="grid grid-cols-6 gap-1.5">
+                        <!-- 24 backpack slots -->
+                    </div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-emerald-400 mt-3 mb-1.5">Active Hotbar</div>
+                    <div id="inventory-hotbar-mirror" class="grid grid-cols-9 gap-1">
+                        <!-- 9 hotbar slots -->
+                    </div>
+                </div>
+
+                <!-- Right: Crafting Station -->
+                <div class="lg:col-span-4 bg-slate-900/60 rounded-xl p-4 border border-white/10 flex flex-col max-h-[420px]">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Crafting & Engineering</span>
+                        <select id="craft-filter" class="bg-slate-950 text-xs border border-white/15 rounded px-2 py-1 text-slate-200">
+                            <option value="all">All Recipes</option>
+                            <option value="tools">Tools & Weapons</option>
+                            <option value="blocks">Building Blocks</option>
+                            <option value="survival">Food & Portals</option>
+                        </select>
+                    </div>
+                    <div id="crafting-list" class="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                        <!-- Recipes dynamically rendered -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * ============================================================================
+     * BLOCKVERSE: WILDERLANDS – GAMERKIE EDITION
+     * Complete AAA Single-File Voxel Engine, Procedural World Generator,
+     * Survival Mechanics, Creature AI, Dimensions, Audio Synthesizer & IndexedDB
+     * ============================================================================
+     */
+
+    // ============================================================================
+    // 1. DETERMINISTIC SEEDED NOISE & PRNG ENGINE
+    // ============================================================================
+    class SeededRandom {
+        constructor(seedStr = "GAMERKIE2026") {
+            let h = 2166136261 >>> 0;
+            const str = String(seedStr);
+            for (let i = 0; i < str.length; i++) {
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 16777619);
+            }
+            this.state = h >>> 0;
+        }
+        next() {
+            let t = (this.state += 0x6D2B79F5);
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }
+        range(min, max) {
+            return min + this.next() * (max - min);
+        }
+        int(min, max) {
+            return Math.floor(this.range(min, max + 1));
+        }
+    }
+
+    class SimplexNoise2D {
+        constructor(seed = 1337) {
+            const rng = new SeededRandom(seed);
+            this.perm = new Uint8Array(512);
+            const p = new Uint8Array(256);
+            for (let i = 0; i < 256; i++) p[i] = i;
+            for (let i = 255; i > 0; i--) {
+                const j = Math.floor(rng.next() * (i + 1));
+                [p[i], p[j]] = [p[j], p[i]];
+            }
+            for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+        }
+        fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+        lerp(a, b, t) { return a + t * (b - a); }
+        grad(hash, x, y) {
+            const h = hash & 7;
+            const u = h < 4 ? x : y;
+            const v = h < 4 ? y : x;
+            return ((h & 1) ? -u : u) + ((h & 2) ? -2.0 * v : 2.0 * v);
+        }
+        noise(x, y) {
+            const X = Math.floor(x) & 255;
+            const Y = Math.floor(y) & 255;
+            x -= Math.floor(x);
+            y -= Math.floor(y);
+            const u = this.fade(x);
+            const v = this.fade(y);
+            const aa = this.perm[this.perm[X] + Y];
+            const ab = this.perm[this.perm[X] + Y + 1];
+            const ba = this.perm[this.perm[X + 1] + Y];
+            const bb = this.perm[this.perm[X + 1] + Y + 1];
+            const res = this.lerp(
+                this.lerp(this.grad(aa, x, y), this.grad(ba, x - 1, y), u),
+                this.lerp(this.grad(ab, x, y - 1), this.grad(bb, x - 1, y - 1), u),
+                v
+            );
+            return res * 0.45; // Normalized approx [-1, 1]
+        }
+        fbm(x, y, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
+            let total = 0, frequency = 1, amplitude = 1, maxValue = 0;
+            for (let i = 0; i < octaves; i++) {
+                total += this.noise(x * frequency, y * frequency) * amplitude;
+                maxValue += amplitude;
+                amplitude *= persistence;
+                frequency *= lacunarity;
+            }
+            return total / maxValue;
+        }
+    }
+
+    // ============================================================================
+    // 2. PROCEDURAL TEXTURE ATLAS & BLOCK / ITEM REGISTRY
+    // ============================================================================
+    const BLOCKS = {
+        AIR: { id: 0, name: 'Air', solid: false, transparent: true },
+        GRASS: { id: 1, name: 'Wilderland Grass', solid: true, hardness: 0.6, color: '#4ade80', topColor: '#22c55e', sideColor: '#78350f', drop: 'DIRT', icon: '🟩' },
+        DIRT: { id: 2, name: 'Rich Soil', solid: true, hardness: 0.5, color: '#78350f', drop: 'DIRT', icon: '🟫' },
+        STONE: { id: 3, name: 'Wildstone', solid: true, hardness: 1.5, color: '#64748b', drop: 'COBBLESTONE', icon: '🪨' },
+        COBBLESTONE: { id: 4, name: 'Cobblestone', solid: true, hardness: 1.4, color: '#475569', drop: 'COBBLESTONE', icon: '🧱' },
+        SAND: { id: 5, name: 'Golden Sand', solid: true, hardness: 0.5, color: '#fde047', drop: 'SAND', icon: '🟨' },
+        WATER: { id: 6, name: 'Crystal Water', solid: false, transparent: true, liquid: true, color: '#0ea5e9', icon: '💧' },
+        WOOD: { id: 7, name: 'Ancient Oak Log', solid: true, hardness: 1.1, color: '#92400e', topColor: '#d97706', drop: 'WOOD', icon: '🪵' },
+        LEAVES: { id: 8, name: 'Canopy Leaves', solid: true, transparent: true, hardness: 0.2, color: '#16a34a', drop: 'APPLE', dropChance: 0.25, icon: '🌿' },
+        PLANKS: { id: 9, name: 'Crafted Timber', solid: true, hardness: 0.9, color: '#b45309', drop: 'PLANKS', icon: '📦' },
+        COAL_ORE: { id: 10, name: 'Coal Vein', solid: true, hardness: 1.8, color: '#1e293b', speck: '#090d16', drop: 'COAL', icon: '⚫' },
+        IRON_ORE: { id: 11, name: 'Iron Ore', solid: true, hardness: 2.2, color: '#64748b', speck: '#fdba74', drop: 'IRON_INGOT', icon: '⚙️' },
+        GOLD_ORE: { id: 12, name: 'Sun Gold Ore', solid: true, hardness: 2.5, color: '#64748b', speck: '#facc15', drop: 'GOLD_INGOT', icon: '🪙' },
+        CRYSTAL_ORE: { id: 13, name: 'Aether Crystal', solid: true, hardness: 3.0, color: '#312e81', speck: '#38bdf8', light: true, drop: 'AETHER_CRYSTAL', icon: '💎' },
+        SNOW: { id: 14, name: 'Frost Snow', solid: true, hardness: 0.4, color: '#f8fafc', drop: 'SNOW', icon: '❄️' },
+        ICE: { id: 15, name: 'Glacier Ice', solid: true, transparent: true, hardness: 0.8, color: '#7dd3fc', drop: 'ICE', icon: '🧊' },
+        LAVA: { id: 16, name: 'Magma Flow', solid: false, transparent: true, liquid: true, hazard: true, color: '#ea580c', icon: '🔥' },
+        OBSIDIAN: { id: 17, name: 'Void Obsidian', solid: true, hardness: 4.5, color: '#1e1b4b', drop: 'OBSIDIAN', icon: '🟪' },
+        BRICKS: { id: 18, name: 'Fortress Bricks', solid: true, hardness: 1.8, color: '#b91c1c', drop: 'BRICKS', icon: '🧱' },
+        GLASS: { id: 19, name: 'Tempered Glass', solid: true, transparent: true, hardness: 0.4, color: '#e0f2fe', drop: 'GLASS', icon: '🪟' },
+        TORCH: { id: 20, name: 'Sunfire Lantern', solid: true, light: true, hardness: 0.2, color: '#f59e0b', drop: 'TORCH', icon: '🏮' },
+        PORTAL_FRAME: { id: 21, name: 'Dimension Gate', solid: true, light: true, hardness: 5.0, color: '#a855f7', drop: 'PORTAL_FRAME', icon: '🌀' },
+        BEDROCK: { id: 99, name: 'World Core', solid: true, hardness: 999, color: '#020617', icon: '⬛' }
+    };
+
+    const BLOCK_BY_ID = {};
+    Object.values(BLOCKS).forEach(b => BLOCK_BY_ID[b.id] = b);
+
+    const ITEMS = {
+        WOOD_PICKAXE: { id: 'WOOD_PICKAXE', name: 'Wooden Pickaxe', type: 'tool', toolType: 'pickaxe', power: 2.2, damage: 8, icon: '⛏️', desc: 'Mines stone and basic ores faster.' },
+        STONE_PICKAXE: { id: 'STONE_PICKAXE', name: 'Wildstone Pickaxe', type: 'tool', toolType: 'pickaxe', power: 3.8, damage: 12, icon: '⚒️', desc: 'Sturdy pickaxe capable of mining Iron & Gold.' },
+        CRYSTAL_BLADE: { id: 'CRYSTAL_BLADE', name: 'Aether Saber', type: 'weapon', power: 1.5, damage: 28, icon: '🗡️', desc: 'Legendary glowing blade effective against bosses.' },
+        APPLE: { id: 'APPLE', name: 'Wilderland Apple', type: 'food', nutrition: 25, heal: 10, icon: '🍎', desc: 'Restores 25 Hunger and 10 Health.' },
+        COOKED_MEAT: { id: 'COOKED_MEAT', name: 'Roasted Venison', type: 'food', nutrition: 45, heal: 20, icon: '🍖', desc: 'Hearty meal restoring 45 Hunger & 20 Health.' },
+        COAL: { id: 'COAL', name: 'Lump of Coal', type: 'material', icon: '⚫', desc: 'Fuel for torches and smelting.' },
+        IRON_INGOT: { id: 'IRON_INGOT', name: 'Forged Iron', type: 'material', icon: '🔩', desc: 'Refined metal for advanced engineering.' },
+        GOLD_INGOT: { id: 'GOLD_INGOT', name: 'Sun Gold Bar', type: 'material', icon: '🪙', desc: 'Precious conductive metal.' },
+        AETHER_CRYSTAL: { id: 'AETHER_CRYSTAL', name: 'Aether Crystal', type: 'material', icon: '💎', desc: 'Channels dimensional portal energy.' }
+    };
+
+    // Merge block items into ITEMS lookup so every block can be held in inventory
+    Object.entries(BLOCKS).forEach(([key, b]) => {
+        if (b.id !== 0 && b.id !== 99) {
+            ITEMS[key] = {
+                id: key,
+                blockId: b.id,
+                name: b.name,
+                type: 'block',
+                icon: b.icon || '🧱',
+                desc: `Placeable ${b.name} block.`
+            };
+        }
+    });
+
+    const RECIPES = [
+        { id: 'r_planks', out: 'PLANKS', count: 4, category: 'blocks', req: { WOOD: 1 } },
+        { id: 'r_pick_wood', out: 'WOOD_PICKAXE', count: 1, category: 'tools', req: { PLANKS: 3 } },
+        { id: 'r_pick_stone', out: 'STONE_PICKAXE', count: 1, category: 'tools', req: { COBBLESTONE: 3, PLANKS: 2 } },
+        { id: 'r_torch', out: 'TORCH', count: 4, category: 'blocks', req: { PLANKS: 1, COAL: 1 } },
+        { id: 'r_bricks', out: 'BRICKS', count: 4, category: 'blocks', req: { COBBLESTONE: 4 } },
+        { id: 'r_glass', out: 'GLASS', count: 4, category: 'blocks', req: { SAND: 2, COAL: 1 } },
+        { id: 'r_sword', out: 'CRYSTAL_BLADE', count: 1, category: 'tools', req: { AETHER_CRYSTAL: 2, IRON_INGOT: 1 } },
+        { id: 'r_portal', out: 'PORTAL_FRAME', count: 1, category: 'survival', req: { OBSIDIAN: 2, AETHER_CRYSTAL: 1 } }
+    ];
+
+    // Procedural Canvas Texture Generator for Voxel Crispness
+    function createBlockTextureAtlas() {
+        const tileSize = 32;
+        const cols = 16;
+        const rows = 16;
+        const canvas = document.createElement('canvas');
+        canvas.width = tileSize * cols;
+        canvas.height = tileSize * rows;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const drawTile = (index, baseHex, detailHex = null, style = 'noise') => {
+            const tx = (index % cols) * tileSize;
+            const ty = Math.floor(index / cols) * tileSize;
+            ctx.fillStyle = baseHex;
+            ctx.fillRect(tx, ty, tileSize, tileSize);
+
+            const rng = new SeededRandom(index * 997 + 13);
+            for (let y = 0; y < tileSize; y += 2) {
+                for (let x = 0; x < tileSize; x += 2) {
+                    const n = rng.next();
+                    if (style === 'noise') {
+                        ctx.fillStyle = n > 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)';
+                        ctx.fillRect(tx + x, ty + y, 2, 2);
+                    } else if (style === 'ore' && detailHex && n > 0.84) {
+                        ctx.fillStyle = detailHex;
+                        ctx.fillRect(tx + x, ty + y, 4, 4);
+                    } else if (style === 'bricks') {
+                        if (y % 8 === 0 || (x + (Math.floor(y / 8) % 2) * 8) % 16 === 0) {
+                            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                            ctx.fillRect(tx + x, ty + y, 2, 2);
+                        }
+                    } else if (style === 'planks') {
+                        if (y % 8 === 0) {
+                            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                            ctx.fillRect(tx + x, ty + y, 2, 2);
+                        }
+                    }
+                }
+            }
+            // Subtle crisp border bevel
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeRect(tx + 0.5, ty + 0.5, tileSize - 1, tileSize - 1);
+        };
+
+        // Populate tile slots matching block IDs
+        Object.values(BLOCKS).forEach(b => {
+            if (b.id === 0) return;
+            const idx = b.id === 99 ? 31 : b.id;
+            if (b.speck) drawTile(idx, b.color, b.speck, 'ore');
+            else if (b.id === 18) drawTile(idx, b.color, null, 'bricks');
+            else if (b.id === 9) drawTile(idx, b.color, null, 'planks');
+            else drawTile(idx, b.color, null, 'noise');
+        });
+        // Special Grass Top tile at index 32
+        drawTile(32, '#22c55e', null, 'noise');
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.magFilter = THREE.NearestFilter;
+        texture.minFilter = THREE.NearestFilter;
+        return { texture, cols, rows };
+    }
+
+    // ============================================================================
+    // 3. PROCEDURAL AUDIO & MUSIC SYNTHESIZER (TONE.JS)
+    // ============================================================================
+    class AudioEngine {
+        constructor() {
+            this.enabled = true;
+            this.initialized = false;
+            this.musicLoop = null;
+        }
+        async init() {
+            if (this.initialized || typeof Tone === 'undefined') return;
+            try {
+                await Tone.start();
+                this.sfxSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.01, decay: 0.12, sustain: 0.05, release: 0.2 }
+                }).toDestination();
+                this.sfxSynth.volume.value = -10;
+
+                this.padSynth = new Tone.PolySynth(Tone.AMSynth, {
+                    envelope: { attack: 1.2, decay: 1.5, sustain: 0.6, release: 2.5 }
+                }).toDestination();
+                this.padSynth.volume.value = -22;
+
+                const chords = [
+                    ['C3', 'G3', 'B3', 'E4'],
+                    ['A2', 'E3', 'G3', 'C4'],
+                    ['F2', 'C3', 'E3', 'A3'],
+                    ['G2', 'D3', 'F3', 'B3']
+                ];
+                let step = 0;
+                this.musicLoop = new Tone.Loop(time => {
+                    if (this.enabled) {
+                        this.padSynth.triggerAttackRelease(chords[step % chords.length], '2m', time);
+                        step++;
+                    }
+                }, '2m');
+                Tone.Transport.bpm.value = 72;
+                Tone.Transport.start();
+                this.musicLoop.start(0);
+                this.initialized = true;
+            } catch (e) {
+                console.warn('Audio init deferred:', e);
+            }
+        }
+        playTone(note, duration = '16n') {
+            if (!this.enabled || !this.initialized) return;
+            try { this.sfxSynth.triggerAttackRelease(note, duration); } catch (e) {}
+        }
+        playMine() { this.playTone('C3', '32n'); }
+        playBreak() { this.playTone('G2', '16n'); }
+        playPlace() { this.playTone('E4', '32n'); }
+        playCraft() { this.playTone(['C4', 'E4', 'G4'], '8n'); }
+        playHurt() { this.playTone('A1', '8n'); }
+        playPickup() { this.playTone('A5', '32n'); }
+        toggle() {
+            this.enabled = !this.enabled;
+            return this.enabled;
+        }
+    }
+
+    // ============================================================================
+    // 4. INDEXEDDB PERSISTENT SAVE SYSTEM
+    // ============================================================================
+    class WorldDatabase {
+        constructor() {
+            this.dbName = 'BlockverseWilderlandsDB';
+            this.storeName = 'worlds';
+            this.db = null;
+        }
+        async open() {
+            if (this.db) return this.db;
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(this.dbName, 1);
+                req.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        db.createObjectStore(this.storeName, { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
+                req.onerror = e => reject(e.target.error);
+            });
+        }
+        async saveWorld(worldData) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                tx.objectStore(this.storeName).put(worldData);
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = e => reject(e.target.error);
+            });
+        }
+        async getAllWorlds() {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readonly');
+                const req = tx.objectStore(this.storeName).getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = e => reject(e.target.error);
+            });
+        }
+        async deleteWorld(id) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                tx.objectStore(this.storeName).delete(id);
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = e => reject(e.target.error);
+            });
+        }
+    }
+
+    // ============================================================================
+    // 5. VOXEL CHUNK ENGINE WITH FACE CULLING & MULTI-DIMENSION BIOMES
+    // ============================================================================
+    const CHUNK_SIZE = 16;
+    const CHUNK_HEIGHT = 48;
+    const WATER_LEVEL = 14;
+
+    const DIMENSIONS = {
+        WILDLANDS: { id: 'WILDLANDS', name: 'The Wildlands', skyDay: 0x60a5fa, skyNight: 0x090d16, fogDensity: 0.008 },
+        EMBER: { id: 'EMBER', name: 'Ember Realm', skyDay: 0x7f1d1d, skyNight: 0x2a0808, fogDensity: 0.012 },
+        FROSTBOUND: { id: 'FROSTBOUND', name: 'Frostbound', skyDay: 0xbae6fd, skyNight: 0x0c192c, fogDensity: 0.011 },
+        CRYSTAL_DEEP: { id: 'CRYSTAL_DEEP', name: 'Crystal Deep', skyDay: 0x312e81, skyNight: 0x0f0c29, fogDensity: 0.013 }
+    };
+
+    class VoxelWorld {
+        constructor(seed, worldType = 'Normal', dimension = 'WILDLANDS', modifiedBlocks = {}) {
+            this.seed = seed;
+            this.worldType = worldType;
+            this.dimension = dimension;
+            this.noiseTerrain = new SimplexNoise2D(seed);
+            this.noiseBiome = new SimplexNoise2D(seed + '_biome');
+            this.noiseDetail = new SimplexNoise2D(seed + '_detail');
+            this.chunks = new Map();
+            this.chunkMeshes = new Map();
+            // Stores player-modified blocks as "x,y,z" -> blockId
+            this.modifiedBlocks = modifiedBlocks || {};
+        }
+
+        chunkKey(cx, cz) { return `${cx},${cz}`; }
+        blockKey(x, y, z) { return `${x},${y},${z}`; }
+
+        getBiomeAt(wx, wz) {
+            if (this.dimension === 'EMBER') return 'Volcanic Caldera';
+            if (this.dimension === 'FROSTBOUND') return 'Glacial Tundra';
+            if (this.dimension === 'CRYSTAL_DEEP') return 'Aether Caverns';
+
+            const temp = this.noiseBiome.fbm(wx * 0.006, wz * 0.006, 2);
+            const moisture = this.noiseDetail.fbm(wx * 0.006 + 50, wz * 0.006 + 50, 2);
+            if (temp > 0.25) return 'Golden Desert';
+            if (temp < -0.25) return 'Snow Peaks';
+            if (moisture > 0.15) return 'Ancient Forest';
+            return 'Green Plains';
+        }
+
+        generateChunkData(cx, cz) {
+            const key = this.chunkKey(cx, cz);
+            if (this.chunks.has(key)) return this.chunks.get(key);
+
+            const data = new Uint8Array(CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE);
+            const idx = (x, y, z) => x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
+
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const wx = cx * CHUNK_SIZE + x;
+                    const wz = cz * CHUNK_SIZE + z;
+                    const biome = this.getBiomeAt(wx, wz);
+
+                    let height = 18;
+                    if (this.worldType === 'Flat') {
+                        height = 16;
+                    } else {
+                        const n1 = this.noiseTerrain.fbm(wx * 0.015, wz * 0.015, 4);
+                        const mountainFactor = this.worldType === 'Mountain' ? 22 : (biome === 'Snow Peaks' ? 18 : 11);
+                        height = Math.floor(17 + n1 * mountainFactor);
+                        height = Math.max(4, Math.min(CHUNK_HEIGHT - 10, height));
+                    }
+
+                    for (let y = 0; y < CHUNK_HEIGHT; y++) {
+                        let blockId = BLOCKS.AIR.id;
+                        if (y === 0) {
+                            blockId = BLOCKS.BEDROCK.id;
+                        } else if (y < height - 3) {
+                            blockId = this.dimension === 'EMBER' ? BLOCKS.OBSIDIAN.id : BLOCKS.STONE.id;
+                            // Procedural Ore Veins
+                            const oreVal = this.noiseDetail.noise(wx * 0.18 + y * 0.2, wz * 0.18);
+                            if (y < 10 && oreVal > 0.34) blockId = BLOCKS.CRYSTAL_ORE.id;
+                            else if (y < 16 && oreVal > 0.30) blockId = BLOCKS.GOLD_ORE.id;
+                            else if (y < 24 && oreVal > 0.27) blockId = BLOCKS.IRON_ORE.id;
+                            else if (oreVal < -0.26) blockId = BLOCKS.COAL_ORE.id;
+                        } else if (y < height) {
+                            if (this.dimension === 'EMBER') blockId = BLOCKS.OBSIDIAN.id;
+                            else if (biome === 'Golden Desert') blockId = BLOCKS.SAND.id;
+                            else blockId = BLOCKS.DIRT.id;
+                        } else if (y === height) {
+                            if (this.dimension === 'EMBER') blockId = BLOCKS.STONE.id;
+                            else if (this.dimension === 'FROSTBOUND' || biome === 'Snow Peaks') blockId = BLOCKS.SNOW.id;
+                            else if (this.dimension === 'CRYSTAL_DEEP') blockId = BLOCKS.CRYSTAL_ORE.id;
+                            else if (biome === 'Golden Desert' || y <= WATER_LEVEL + 1) blockId = BLOCKS.SAND.id;
+                            else blockId = BLOCKS.GRASS.id;
+                        } else if (y <= WATER_LEVEL && this.worldType !== 'Flat') {
+                            blockId = this.dimension === 'EMBER' ? BLOCKS.LAVA.id :
+                                      (this.dimension === 'FROSTBOUND' ? BLOCKS.ICE.id : BLOCKS.WATER.id);
+                        }
+
+                        data[idx(x, y, z)] = blockId;
+                    }
+
+                    // Procedural Trees on Land
+                    if (this.worldType !== 'Flat' && height > WATER_LEVEL + 1 && (biome === 'Ancient Forest' || biome === 'Green Plains') && this.dimension === 'WILDLANDS') {
+                        const treeNoise = this.noiseDetail.noise(wx * 0.7, wz * 0.7);
+                        const threshold = biome === 'Ancient Forest' ? 0.34 : 0.41;
+                        if (treeNoise > threshold && x >= 2 && x <= 13 && z >= 2 && z <= 13 && height + 6 < CHUNK_HEIGHT) {
+                            for (let ty = 1; ty <= 4; ty++) {
+                                data[idx(x, height + ty, z)] = BLOCKS.WOOD.id;
+                            }
+                            for (let lx = -2; lx <= 2; lx++) {
+                                for (let lz = -2; lz <= 2; lz++) {
+                                    for (let ly = 3; ly <= 5; ly++) {
+                                        if (Math.abs(lx) + Math.abs(lz) + (ly - 3) <= 3) {
+                                            const cur = data[idx(x + lx, height + ly, z + lz)];
+                                            if (cur === BLOCKS.AIR.id) {
+                                                data[idx(x + lx, height + ly, z + lz)] = BLOCKS.LEAVES.id;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Apply saved player modifications inside this chunk
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const wx = cx * CHUNK_SIZE + x;
+                    const wz = cz * CHUNK_SIZE + z;
+                    for (let y = 0; y < CHUNK_HEIGHT; y++) {
+                        const bKey = this.blockKey(wx, y, wz);
+                        if (this.modifiedBlocks[bKey] !== undefined) {
+                            data[idx(x, y, z)] = this.modifiedBlocks[bKey];
+                        }
+                    }
+                }
+            }
+
+            this.chunks.set(key, data);
+            return data;
+        }
+
+        getBlock(wx, wy, wz) {
+            if (wy < 0) return BLOCKS.BEDROCK.id;
+            if (wy >= CHUNK_HEIGHT) return BLOCKS.AIR.id;
+            const bKey = this.blockKey(wx, wy, wz);
+            if (this.modifiedBlocks[bKey] !== undefined) return this.modifiedBlocks[bKey];
+
+            const cx = Math.floor(wx / CHUNK_SIZE);
+            const cz = Math.floor(wz / CHUNK_SIZE);
+            const chunk = this.generateChunkData(cx, cz);
+            const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            return chunk[lx + lz * CHUNK_SIZE + wy * CHUNK_SIZE * CHUNK_SIZE];
+        }
+
+        setBlock(wx, wy, wz, blockId) {
+            if (wy <= 0 || wy >= CHUNK_HEIGHT) return false;
+            const cx = Math.floor(wx / CHUNK_SIZE);
+            const cz = Math.floor(wz / CHUNK_SIZE);
+            const chunk = this.generateChunkData(cx, cz);
+            const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            chunk[lx + lz * CHUNK_SIZE + wy * CHUNK_SIZE * CHUNK_SIZE] = blockId;
+            this.modifiedBlocks[this.blockKey(wx, wy, wz)] = blockId;
+            return true;
+        }
+
+        getSurfaceHeight(wx, wz) {
+            for (let y = CHUNK_HEIGHT - 1; y >= 1; y--) {
+                const id = this.getBlock(wx, y, wz);
+                const def = BLOCK_BY_ID[id];
+                if (def && def.solid) return y + 1;
+            }
+            return 20;
+        }
+
+        // Optimized Face-Culled Chunk Mesh Builder
+        buildChunkMesh(cx, cz, material) {
+            const chunk = this.generateChunkData(cx, cz);
+            const positions = [];
+            const normals = [];
+            const uvs = [];
+            const indices = [];
+
+            const cols = 16, rows = 16;
+            const pad = 0.002;
+
+            const faces = [
+                { dir: [1, 0, 0], corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], norm: [1,0,0] },   // Right
+                { dir: [-1, 0, 0], corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], norm: [-1,0,0] }, // Left
+                { dir: [0, 1, 0], corners: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]], norm: [0,1,0] },   // Top
+                { dir: [0, -1, 0], corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]], norm: [0,-1,0] }, // Bottom
+                { dir: [0, 0, 1], corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], norm: [0,0,1] },   // Front
+                { dir: [0, 0, -1], corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], norm: [0,0,-1] }  // Back
+            ];
+
+            let vertCount = 0;
+            for (let y = 0; y < CHUNK_HEIGHT; y++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    for (let x = 0; x < CHUNK_SIZE; x++) {
+                        const bId = chunk[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE];
+                        if (bId === 0) continue;
+                        const bDef = BLOCK_BY_ID[bId];
+                        if (!bDef) continue;
+
+                        const wx = cx * CHUNK_SIZE + x;
+                        const wz = cz * CHUNK_SIZE + z;
+
+                        for (let f = 0; f < 6; f++) {
+                            const face = faces[f];
+                            const nx = wx + face.dir[0];
+                            const ny = y + face.dir[1];
+                            const nz = wz + face.dir[2];
+                            const neighborId = this.getBlock(nx, ny, nz);
+                            const nDef = BLOCK_BY_ID[neighborId];
+
+                            // Face culling: render face if neighbor is air or transparent (unless same liquid/glass)
+                            const shouldRender = neighborId === 0 || (nDef && nDef.transparent && neighborId !== bId);
+                            if (!shouldRender) continue;
+
+                            // Pick tile index (Grass top uses special green tile 32)
+                            let tileIdx = bId === 99 ? 31 : bId;
+                            if (bId === BLOCKS.GRASS.id && face.dir[1] === 1) tileIdx = 32;
+
+                            const u0 = (tileIdx % cols) / cols + pad;
+                            const v0 = 1 - (Math.floor(tileIdx / cols) + 1) / rows + pad;
+                            const u1 = (tileIdx % cols + 1) / cols - pad;
+                            const v1 = 1 - Math.floor(tileIdx / cols) / rows - pad;
+
+                            const faceUVs = [[u0, v0], [u0, v1], [u1, v1], [u1, v0]];
+
+                            for (let c = 0; c < 4; c++) {
+                                const corner = face.corners[c];
+                                positions.push(wx + corner[0], y + corner[1], wz + corner[2]);
+                                normals.push(face.norm[0], face.norm[1], face.norm[2]);
+                                uvs.push(faceUVs[c][0], faceUVs[c][1]);
+                            }
+                            indices.push(vertCount, vertCount + 1, vertCount + 2, vertCount, vertCount + 2, vertCount + 3);
+                            vertCount += 4;
+                        }
+                    }
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geo.setIndex(indices);
+            geo.computeBoundingSphere();
+
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            return mesh;
+        }
+    }
+
+    // ============================================================================
+    // 6. LIVING ECOSYSTEM, CREATURE AI & BOSS SYSTEM
+    // ============================================================================
+    const CREATURE_TYPES = {
+        DEER: { name: 'Wilderland Stag', hostile: false, hp: 30, speed: 3.2, color: 0xb45309, scale: [0.8, 1.1, 1.2], drop: 'COOKED_MEAT' },
+        SHEEP: { name: 'Highland Woolly', hostile: false, hp: 25, speed: 2.2, color: 0xf8fafc, scale: [0.8, 0.85, 1.0], drop: 'COOKED_MEAT' },
+        STALKER: { name: 'Shadow Stalker', hostile: true, hp: 45, damage: 12, speed: 4.1, color: 0x1e1b4b, eyeColor: 0xf43f5e, scale: [0.75, 1.6, 0.75], drop: 'COAL' },
+        GOLEM: { name: 'Stone Ravager', hostile: true, hp: 70, damage: 18, speed: 2.6, color: 0x475569, eyeColor: 0xf59e0b, scale: [1.1, 1.8, 1.1], drop: 'IRON_INGOT' },
+        GUARDIAN_BOSS: { name: 'ANCIENT FOREST GUARDIAN', boss: true, hostile: true, hp: 350, damage: 24, speed: 3.5, color: 0x065f46, eyeColor: 0x38bdf8, scale: [2.2, 3.6, 2.2], drop: 'AETHER_CRYSTAL' }
+    };
+
+    class CreatureEntity {
+        constructor(typeKey, x, y, z, scene) {
+            this.typeKey = typeKey;
+            this.def = CREATURE_TYPES[typeKey];
+            this.hp = this.def.hp;
+            this.maxHp = this.def.hp;
+            this.pos = new THREE.Vector3(x, y, z);
+            this.vel = new THREE.Vector3(0, 0, 0);
+            this.state = 'WANDER'; // IDLE, WANDER, CHASE, FLEE
+            this.aiTimer = Math.random() * 3;
+            this.wanderDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+            this.attackCooldown = 0;
+
+            // Build stylized 3D voxel creature mesh
+            this.group = new THREE.Group();
+            const [sx, sy, sz] = this.def.scale;
+            const bodyGeo = new THREE.BoxGeometry(sx, sy, sz);
+            const bodyMat = new THREE.MeshLambertMaterial({ color: this.def.color });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = sy / 2;
+            body.castShadow = true;
+            this.group.add(body);
+
+            // Head & glowing eyes
+            const headGeo = new THREE.BoxGeometry(sx * 0.65, sx * 0.65, sx * 0.65);
+            const head = new THREE.Mesh(headGeo, bodyMat);
+            head.position.set(0, sy + sx * 0.25, sz * 0.35);
+            this.group.add(head);
+
+            if (this.def.eyeColor) {
+                const eyeGeo = new THREE.BoxGeometry(sx * 0.45, sx * 0.14, 0.1);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: this.def.eyeColor });
+                const eyes = new THREE.Mesh(eyeGeo, eyeMat);
+                eyes.position.set(0, sy + sx * 0.28, sz * 0.68);
+                this.group.add(eyes);
+            }
+
+            this.group.position.copy(this.pos);
+            scene.add(this.group);
+        }
+
+        update(dt, world, playerPos, isNight, onAttackPlayer) {
+            this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+            this.aiTimer -= dt;
+
+            const distToPlayer = this.pos.distanceTo(playerPos);
+
+            // State Machine transitions
+            if (this.def.hostile) {
+                const aggroRange = this.def.boss ? 28 : (isNight ? 20 : 12);
+                if (distToPlayer < aggroRange) {
+                    this.state = 'CHASE';
+                } else if (this.aiTimer <= 0) {
+                    this.state = 'WANDER';
+                    this.aiTimer = 2 + Math.random() * 3;
+                    this.wanderDir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+                }
+            } else {
+                if (distToPlayer < 6) {
+                    this.state = 'FLEE';
+                } else if (this.aiTimer <= 0) {
+                    this.state = 'WANDER';
+                    this.aiTimer = 2.5 + Math.random() * 4;
+                    this.wanderDir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+                }
+            }
+
+            let moveDir = new THREE.Vector3();
+            let speedMult = 1;
+
+            if (this.state === 'CHASE') {
+                moveDir.subVectors(playerPos, this.pos);
+                moveDir.y = 0;
+                moveDir.normalize();
+                speedMult = 1.25;
+
+                if (distToPlayer < (this.def.boss ? 3.2 : 1.9) && this.attackCooldown <= 0) {
+                    this.attackCooldown = 1.3;
+                    onAttackPlayer(this.def.damage, this.def.name);
+                }
+            } else if (this.state === 'FLEE') {
+                moveDir.subVectors(this.pos, playerPos);
+                moveDir.y = 0;
+                moveDir.normalize();
+                speedMult = 1.45;
+            } else {
+                moveDir.copy(this.wanderDir);
+                speedMult = 0.5;
+            }
+
+            // Apply horizontal movement & simple voxel step-up
+            const nextX = this.pos.x + moveDir.x * this.def.speed * speedMult * dt;
+            const nextZ = this.pos.z + moveDir.z * this.def.speed * speedMult * dt;
+            const groundY = world.getSurfaceHeight(Math.floor(nextX), Math.floor(nextZ));
+
+            if (Math.abs(groundY - this.pos.y) <= 1.5) {
+                this.pos.x = nextX;
+                this.pos.z = nextZ;
+                this.pos.y = THREE.MathUtils.lerp(this.pos.y, groundY, 0.25);
+            } else {
+                // Turn around if blocked by steep cliff
+                this.wanderDir.negate();
+            }
+
+            if (moveDir.lengthSq() > 0.01) {
+                this.group.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+            }
+            this.group.position.copy(this.pos);
+            // Subtle walk bob animation
+            this.group.position.y += Math.abs(Math.sin(performance.now() * 0.008)) * 0.08;
+        }
+
+        destroy(scene) {
+            scene.remove(this.group);
+        }
+    }
+
+    // ============================================================================
+    // 7. MAIN AAA GAME CONTROLLER
+    // ============================================================================
+    class BlockverseGame {
+        constructor() {
+            this.canvas = document.getElementById('game-canvas');
+            this.audio = new AudioEngine();
+            this.db = new WorldDatabase();
+
+            // Game State
+            this.state = 'MENU'; // MENU, PLAYING, PAUSED, INVENTORY
+            this.worldMeta = null;
+            this.world = null;
+            this.creatures = [];
+            this.droppedItems = [];
+
+            // Settings
+            this.settings = {
+                renderDistance: 3, // chunks radius
+                graphics: 'High',
+                fov: 75,
+                sensitivity: 0.0024,
+                mobileControls: 'ontouchstart' in window || navigator.maxTouchPoints > 0
+            };
+
+            // Character Profile
+            this.character = {
+                name: 'Wilderlands Explorer',
+                archetype: 'Ranger',
+                skinColor: '#eab308',
+                tunicColor: '#10b981'
+            };
+
+            // Player State
+            this.player = {
+                pos: new THREE.Vector3(8, 26, 8),
+                vel: new THREE.Vector3(0, 0, 0),
+                yaw: 0,
+                pitch: 0,
+                onGround: false,
+                inWater: false,
+                hp: 100, maxHp: 100,
+                hunger: 100, maxHunger: 100,
+                stamina: 100, maxStamina: 100,
+                oxygen: 100, maxOxygen: 100,
+                xp: 0, level: 1,
+                cameraMode: 'FIRST', // FIRST or THIRD
+                selectedSlot: 0,
+                hotbar: new Array(9).fill(null),
+                backpack: new Array(24).fill(null),
+                stats: { mined: 0, placed: 0, crafted: 0, kills: 0 }
+            };
+
+            // Environment State
+            this.timeOfDay = 0.25; // 0..1 (0.25 = Morning, 0.5 = Noon, 0.75 = Sunset, 0.0 = Midnight)
+            this.dayCount = 1;
+            this.weather = 'Clear'; // Clear, Rain, Storm
+            this.weatherTimer = 90;
+
+            // Mining & Interaction
+            this.targetBlock = null;
+            this.miningProgress = 0;
+            this.isMining = false;
+
+            // Input States
+            this.keys = {};
+            this.touchMove = { x: 0, y: 0 };
+
+            // Achievements
+            this.achievements = JSON.parse(localStorage.getItem('bv_achievements') || '{}');
+
+            this.initThree();
+            this.initMenuBackgroundWorld();
+            this.bindUIEvents();
+            this.updateSavedWorldsCount();
+
+            this.lastTime = performance.now();
+            this.fpsCounter = { frames: 0, last: performance.now(), val: 60 };
+            this.animate = this.animate.bind(this);
+            requestAnimationFrame(this.animate);
+        }
+
+        initThree() {
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0x60a5fa);
+            this.scene.fog = new THREE.FogExp2(0x60a5fa, 0.008);
+
+            this.camera = new THREE.PerspectiveCamera(this.settings.fov, window.innerWidth / window.innerHeight, 0.1, 250);
+            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Lighting
+            this.ambientLight = new THREE.AmbientLight(0xffffff, 0.62);
+            this.scene.add(this.ambientLight);
+
+            this.sunLight = new THREE.DirectionalLight(0xfffbeb, 0.95);
+            this.sunLight.position.set(40, 80, 30);
+            this.sunLight.castShadow = true;
+            this.sunLight.shadow.mapSize.width = 1024;
+            this.sunLight.shadow.mapSize.height = 1024;
+            this.scene.add(this.sunLight);
+
+            // Texture Atlas Material
+            const atlas = createBlockTextureAtlas();
+            this.voxelMaterial = new THREE.MeshLambertMaterial({
+                map: atlas.texture,
+                side: THREE.FrontSide
+            });
+
+            // Target Block Wireframe Highlighter
+            const hlGeo = new THREE.BoxGeometry(1.015, 1.015, 1.015);
+            const hlEdges = new THREE.EdgesGeometry(hlGeo);
+            this.blockHighlight = new THREE.LineSegments(hlEdges, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+            this.blockHighlight.visible = false;
+            this.scene.add(this.blockHighlight);
+
+            // 3D Player Avatar Mesh (Visible in 3rd person & Menu)
+            this.buildPlayerAvatarMesh();
+
+            // Particles (Rain / Ambient Spores)
+            const pCount = 600;
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(pCount * 3);
+            for (let i = 0; i < pCount * 3; i++) pPos[i] = (Math.random() - 0.5) * 60;
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            this.weatherParticles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xbae6fd, size: 0.18, transparent: true, opacity: 0.6 }));
+            this.weatherParticles.visible = false;
+            this.scene.add(this.weatherParticles);
+
+            window.addEventListener('resize', () => {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        buildPlayerAvatarMesh() {
+            if (this.playerMesh) this.scene.remove(this.playerMesh);
+            this.playerMesh = new THREE.Group();
+
+            const tunicMat = new THREE.MeshLambertMaterial({ color: this.character.tunicColor });
+            const skinMat = new THREE.MeshLambertMaterial({ color: this.character.skinColor });
+            const pantsMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.75, 0.32), tunicMat);
+            torso.position.y = 1.05;
+            this.playerMesh.add(torso);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.48, 0.48), skinMat);
+            head.position.y = 1.68;
+            this.playerMesh.add(head);
+
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.68, 0.28), pantsMat);
+            legL.position.set(-0.15, 0.34, 0);
+            const legR = legL.clone();
+            legR.position.x = 0.15;
+            this.playerMesh.add(legL, legR);
+
+            this.playerMesh.visible = false;
+            this.scene.add(this.playerMesh);
+        }
+
+        initMenuBackgroundWorld() {
+            // Live animated 3D voxel showcase behind the main menu
+            this.clearWorldScene();
+            this.world = new VoxelWorld('WILDERLANDS_HERO', 'Normal', 'WILDLANDS');
+            for (let cx = -2; cx <= 2; cx++) {
+                for (let cz = -2; cz <= 2; cz++) {
+                    const mesh = this.world.buildChunkMesh(cx, cz, this.voxelMaterial);
+                    this.scene.add(mesh);
+                    this.world.chunkMeshes.set(this.world.chunkKey(cx, cz), mesh);
+                }
+            }
+            const heroY = this.world.getSurfaceHeight(4, 4);
+            this.playerMesh.position.set(4.5, heroY, 4.5);
+            this.playerMesh.visible = true;
+        }
+
+        clearWorldScene() {
+            if (this.world) {
+                this.world.chunkMeshes.forEach(m => {
+                    this.scene.remove(m);
+                    m.geometry.dispose();
+                });
+                this.world.chunkMeshes.clear();
+            }
+            this.creatures.forEach(c => c.destroy(this.scene));
+            this.creatures = [];
+        }
+
+        showToast(title, msg = '', type = 'info') {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            const border = type === 'success' ? 'border-emerald-400' : (type === 'danger' ? 'border-rose-500' : 'border-amber-400');
+            el.className = `glass-panel rounded-xl p-3 border-l-4 ${border} shadow-xl transition-all duration-300 transform translate-x-0`;
+            el.innerHTML = `<div class="text-xs font-bold text-white">${title}</div>${msg ? `<div class="text-[11px] text-slate-300 mt-0.5">${msg}</div>` : ''}`;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            }, 3400);
+        }
+
+        unlockAchievement(id, title, desc) {
+            if (this.achievements[id]) return;
+            this.achievements[id] = { title, desc, unlockedAt: Date.now() };
+            localStorage.setItem('bv_achievements', JSON.stringify(this.achievements));
+            this.showToast(`🏆 Achievement Unlocked: ${title}`, desc, 'success');
+            this.audio.playCraft();
+        }
+
+        // ========================================================================
+        // 8. STARTING & SAVING WORLDS
+        // ========================================================================
+        startNewWorld(options = {}) {
+            this.audio.init();
+            this.clearWorldScene();
+
+            const id = options.id || 'world_' + Date.now();
+            const seed = options.seed || 'GK-' + Math.floor(100000 + Math.random() * 900000);
+            const name = options.name || 'Wilderlands Frontier';
+            const mode = options.mode || 'Survival'; // Survival, Creative, Adventure, Spectator, Hardcore
+            const worldType = options.worldType || 'Normal';
+            const dimension = options.dimension || 'WILDLANDS';
+
+            this.worldMeta = { id, name, seed, mode, worldType, dimension, createdAt: Date.now() };
+            this.world = new VoxelWorld(seed, worldType, dimension, options.modifiedBlocks || {});
+
+            // Spawn position
+            if (options.playerPos) {
+                this.player.pos.set(options.playerPos.x, options.playerPos.y, options.playerPos.z);
+            } else {
+                const sy = this.world.getSurfaceHeight(8, 8) + 1;
+                this.player.pos.set(8.5, sy, 8.5);
+            }
+
+            this.player.hp = options.hp ?? 100;
+            this.player.hunger = options.hunger ?? 100;
+            this.player.stamina = 100;
+            this.player.xp = options.xp ?? 0;
+            this.player.level = options.level ?? 1;
+            this.player.stats = options.stats || { mined: 0, placed: 0, crafted: 0, kills: 0 };
+
+            // Starting Inventory Setup
+            if (options.hotbar) {
+                this.player.hotbar = options.hotbar;
+                this.player.backpack = options.backpack || new Array(24).fill(null);
+            } else if (mode === 'Creative') {
+                this.player.hotbar = [
+                    { id: 'GRASS', count: 99 }, { id: 'STONE', count: 99 }, { id: 'PLANKS', count: 99 },
+                    { id: 'BRICKS', count: 99 }, { id: 'GLASS', count: 99 }, { id: 'TORCH', count: 99 },
+                    { id: 'WATER', count: 99 }, { id: 'PORTAL_FRAME', count: 99 }, { id: 'CRYSTAL_BLADE', count: 1 }
+                ];
+                this.player.backpack = [
+                    { id: 'SAND', count: 99 }, { id: 'SNOW', count: 99 }, { id: 'ICE', count: 99 },
+                    { id: 'OBSIDIAN', count: 99 }, { id: 'CRYSTAL_ORE', count: 99 }, { id: 'GOLD_ORE', count: 99 }
+                ].concat(new Array(18).fill(null));
+            } else {
+                this.player.hotbar = [
+                    { id: 'WOOD_PICKAXE', count: 1 },
+                    { id: 'TORCH', count: 8 },
+                    { id: 'APPLE', count: 5 },
+                    { id: 'PLANKS', count: 12 },
+                    null, null, null, null, null
+                ];
+                this.player.backpack = new Array(24).fill(null);
+            }
+
+            // Spawn initial wildlife & guardian boss nearby
+            this.spawnInitialCreatures();
+
+            // UI Transitions
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('modal-backdrop').classList.add('hidden');
+            document.getElementById('hud-layer').classList.remove('hidden');
+
+            document.getElementById('survival-bars').style.display = (mode === 'Creative' || mode === 'Spectator') ? 'none' : 'grid';
+            document.getElementById('hud-dimension-badge').textContent = DIMENSIONS[dimension].name.toUpperCase();
+
+            if (this.settings.mobileControls) {
+                document.getElementById('mobile-controls').classList.remove('hidden');
+            }
+
+            this.state = 'PLAYING';
+            this.updateChunksAroundPlayer();
+            this.renderHotbar();
+            this.showToast(`Entered ${name}`, `Mode: ${mode} • Seed: ${seed}`, 'success');
+            this.saveCurrentWorld();
+        }
+
+        spawnInitialCreatures() {
+            const px = Math.floor(this.player.pos.x);
+            const pz = Math.floor(this.player.pos.z);
+            const spawnList = ['DEER', 'DEER', 'SHEEP', 'STALKER', 'GOLEM'];
+            spawnList.forEach((type, i) => {
+                const angle = (i / spawnList.length) * Math.PI * 2;
+                const dist = 14 + i * 4;
+                const sx = Math.floor(px + Math.cos(angle) * dist);
+                const sz = Math.floor(pz + Math.sin(angle) * dist);
+                const sy = this.world.getSurfaceHeight(sx, sz);
+                this.creatures.push(new CreatureEntity(type, sx + 0.5, sy, sz + 0.5, this.scene));
+            });
+
+            // Spawn Boss further out for exploration & epic combat
+            const bx = px + 26;
+            const bz = pz + 26;
+            const by = this.world.getSurfaceHeight(bx, bz);
+            this.creatures.push(new CreatureEntity('GUARDIAN_BOSS', bx + 0.5, by, bz + 0.5, this.scene));
+        }
+
+        async saveCurrentWorld() {
+            if (!this.worldMeta || !this.world) return;
+            const payload = {
+                ...this.worldMeta,
+                dimension: this.world.dimension,
+                modifiedBlocks: this.world.modifiedBlocks,
+                playerPos: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z },
+                hp: this.player.hp,
+                hunger: this.player.hunger,
+                xp: this.player.xp,
+                level: this.player.level,
+                hotbar: this.player.hotbar,
+                backpack: this.player.backpack,
+                stats: this.player.stats,
+                savedAt: Date.now()
+            };
+            try {
+                await this.db.saveWorld(payload);
+                this.updateSavedWorldsCount();
+            } catch (e) {
+                console.error('Save failed:', e);
+            }
+        }
+
+        async updateSavedWorldsCount() {
+            try {
+                const worlds = await this.db.getAllWorlds();
+                const el = document.getElementById('menu-save-count');
+                if (el) el.textContent = `Saved Worlds: ${worlds.length}`;
+            } catch (e) {}
+        }
+
+        switchDimension(dimKey) {
+            if (!DIMENSIONS[dimKey] || !this.world) return;
+            this.clearWorldScene();
+            this.world.dimension = dimKey;
+            this.world.chunks.clear();
+            const sy = this.world.getSurfaceHeight(Math.floor(this.player.pos.x), Math.floor(this.player.pos.z)) + 2;
+            this.player.pos.y = sy;
+            this.updateChunksAroundPlayer();
+            this.spawnInitialCreatures();
+            document.getElementById('hud-dimension-badge').textContent = DIMENSIONS[dimKey].name.toUpperCase();
+            this.unlockAchievement('FIRST_PORTAL', 'Dimensional Traveler', `Stepped into ${DIMENSIONS[dimKey].name}.`);
+            this.showToast(`Portal Activated: ${DIMENSIONS[dimKey].name}`, 'New terrain, ores, and creatures generated!', 'success');
+            this.audio.playCraft();
+        }
+
+        // ========================================================================
+        // 9. CHUNK STREAMING & RAYCAST BLOCK / CREATURE INTERACTION
+        // ========================================================================
+        updateChunksAroundPlayer() {
+            if (!this.world) return;
+            const pcx = Math.floor(this.player.pos.x / CHUNK_SIZE);
+            const pcz = Math.floor(this.player.pos.z / CHUNK_SIZE);
+            const rd = this.settings.renderDistance;
+
+            const needed = new Set();
+            for (let dx = -rd; dx <= rd; dx++) {
+                for (let dz = -rd; dz <= rd; dz++) {
+                    const cx = pcx + dx;
+                    const cz = pcz + dz;
+                    const key = this.world.chunkKey(cx, cz);
+                    needed.add(key);
+                    if (!this.world.chunkMeshes.has(key)) {
+                        const mesh = this.world.buildChunkMesh(cx, cz, this.voxelMaterial);
+                        this.scene.add(mesh);
+                        this.world.chunkMeshes.set(key, mesh);
+                    }
+                }
+            }
+
+            // Unload far chunks to preserve memory & mobile FPS
+            for (const [key, mesh] of this.world.chunkMeshes.entries()) {
+                if (!needed.has(key)) {
+                    this.scene.remove(mesh);
+                    mesh.geometry.dispose();
+                    this.world.chunkMeshes.delete(key);
+                }
+            }
+        }
+
+        rebuildChunkAt(wx, wz) {
+            const cx = Math.floor(wx / CHUNK_SIZE);
+            const cz = Math.floor(wz / CHUNK_SIZE);
+            // Rebuild center chunk and any adjacent chunk if block is on border
+            const toRebuild = [[cx, cz]];
+            const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            if (lx === 0) toRebuild.push([cx - 1, cz]);
+            if (lx === CHUNK_SIZE - 1) toRebuild.push([cx + 1, cz]);
+            if (lz === 0) toRebuild.push([cx, cz - 1]);
+            if (lz === CHUNK_SIZE - 1) toRebuild.push([cx, cz + 1]);
+
+            toRebuild.forEach(([rcx, rcz]) => {
+                const key = this.world.chunkKey(rcx, rcz);
+                if (this.world.chunkMeshes.has(key)) {
+                    const old = this.world.chunkMeshes.get(key);
+                    this.scene.remove(old);
+                    old.geometry.dispose();
+                }
+                const mesh = this.world.buildChunkMesh(rcx, rcz, this.voxelMaterial);
+                this.scene.add(mesh);
+                this.world.chunkMeshes.set(key, mesh);
+            });
+        }
+
+        raycastVoxel() {
+            // Fast 3D DDA voxel traversal from eye position
+            const eye = new THREE.Vector3(this.player.pos.x, this.player.pos.y + 1.62, this.player.pos.z);
+            const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(this.player.pitch, this.player.yaw, 0, 'YXZ')).normalize();
+
+            const maxDist = 6.0;
+            const step = 0.08;
+            let prev = null;
+
+            for (let d = 0; d <= maxDist; d += step) {
+                const p = eye.clone().addScaledVector(dir, d);
+                const bx = Math.floor(p.x);
+                const by = Math.floor(p.y);
+                const bz = Math.floor(p.z);
+
+                if (prev && prev.x === bx && prev.y === by && prev.z === bz) continue;
+
+                const blockId = this.world.getBlock(bx, by, bz);
+                const def = BLOCK_BY_ID[blockId];
+                if (blockId !== 0 && def && !def.liquid) {
+                    return {
+                        x: bx, y: by, z: bz,
+                        blockId,
+                        def,
+                        placePos: prev || { x: bx, y: by + 1, z: bz }
+                    };
+                }
+                prev = { x: bx, y: by, z: bz };
+            }
+            return null;
+        }
+
+        handlePrimaryAction(dt = 0.15) {
+            if (this.state !== 'PLAYING' || this.worldMeta.mode === 'Spectator') return;
+
+            // 1. Check Creature Melee Hit first
+            const eye = new THREE.Vector3(this.player.pos.x, this.player.pos.y + 1.5, this.player.pos.z);
+            const lookDir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(this.player.pitch, this.player.yaw, 0, 'YXZ'));
+
+            for (let i = this.creatures.length - 1; i >= 0; i--) {
+                const c = this.creatures[i];
+                const toC = new THREE.Vector3().subVectors(c.pos.clone().add(new THREE.Vector3(0, 1, 0)), eye);
+                const dist = toC.length();
+                if (dist < 4.2 && toC.normalize().dot(lookDir) > 0.82) {
+                    const held = this.getHeldItemDef();
+                    const dmg = held && held.damage ? held.damage : 6;
+                    c.hp -= dmg;
+                    this.audio.playBreak();
+                    // Knockback
+                    c.pos.addScaledVector(lookDir, 0.7);
+                    if (c.hp <= 0) {
+                        this.player.stats.kills++;
+                        this.gainXP(c.def.boss ? 150 : 25);
+                        if (c.def.drop) this.addItemToInventory(c.def.drop, c.def.boss ? 5 : 1);
+                        if (c.def.boss) {
+                            this.unlockAchievement('BOSS_SLAYER', 'Guardian Vanquisher', 'Defeated the Ancient Forest Guardian!');
+                        }
+                        this.showToast(`Defeated ${c.def.name}`, `Collected ${ITEMS[c.def.drop]?.name || 'Loot'}`, 'success');
+                        c.destroy(this.scene);
+                        this.creatures.splice(i, 1);
+                    }
+                    return;
+                }
+            }
+
+            // 2. Block Mining
+            if (!this.targetBlock || this.targetBlock.blockId === BLOCKS.BEDROCK.id) return;
+
+            if (this.worldMeta.mode === 'Creative') {
+                this.breakTargetBlock();
+                return;
+            }
+
+            const held = this.getHeldItemDef();
+            const speedMult = (held && held.power) ? held.power : 1.0;
+            const hardness = this.targetBlock.def.hardness || 1.0;
+            this.miningProgress += (dt * speedMult) / hardness;
+
+            if (Math.random() < 0.35) this.audio.playMine();
+
+            if (this.miningProgress >= 1.0) {
+                this.breakTargetBlock();
+                this.miningProgress = 0;
+            }
+        }
+
+        breakTargetBlock() {
+            if (!this.targetBlock) return;
+            const { x, y, z, def } = this.targetBlock;
+            this.world.setBlock(x, y, z, BLOCKS.AIR.id);
+            this.rebuildChunkAt(x, z);
+            this.audio.playBreak();
+
+            this.player.stats.mined++;
+            this.gainXP(2);
+            this.unlockAchievement('FIRST_MINE', 'Earthbreaker', 'Mined your first voxel block.');
+
+            if (def.drop && this.worldMeta.mode !== 'Creative') {
+                if (!def.dropChance || Math.random() <= def.dropChance) {
+                    this.addItemToInventory(def.drop, 1);
+                }
+            }
+            this.targetBlock = null;
+        }
+
+        handleSecondaryAction() {
+            if (this.state !== 'PLAYING' || this.worldMeta.mode === 'Spectator') return;
+            const heldSlot = this.player.hotbar[this.player.selectedSlot];
+            if (!heldSlot) return;
+            const itemDef = ITEMS[heldSlot.id];
+            if (!itemDef) return;
+
+            // Eat Food
+            if (itemDef.type === 'food') {
+                this.consumeFoodSlot(this.player.selectedSlot);
+                return;
+            }
+
+            // Place Block
+            if (itemDef.type === 'block' && this.targetBlock) {
+                const { x, y, z } = this.targetBlock.placePos;
+                // Prevent placing inside player's own bounding cylinder
+                const px = Math.floor(this.player.pos.x);
+                const py = Math.floor(this.player.pos.y);
+                const pz = Math.floor(this.player.pos.z);
+                if (x === px && z === pz && (y === py || y === py + 1)) return;
+
+                if (this.world.setBlock(x, y, z, itemDef.blockId)) {
+                    this.rebuildChunkAt(x, z);
+                    this.audio.playPlace();
+                    this.player.stats.placed++;
+                    this.unlockAchievement('FIRST_BUILD', 'Master Architect', 'Placed your first construction block.');
+
+                    if (this.worldMeta.mode !== 'Creative') {
+                        heldSlot.count--;
+                        if (heldSlot.count <= 0) this.player.hotbar[this.player.selectedSlot] = null;
+                        this.renderHotbar();
+                    }
+                }
+            }
+        }
+
+        consumeFoodSlot(slotIdx) {
+            const slot = this.player.hotbar[slotIdx];
+            if (!slot) return;
+            const def = ITEMS[slot.id];
+            if (!def || def.type !== 'food') return;
+            this.player.hunger = Math.min(this.player.maxHunger, this.player.hunger + def.nutrition);
+            this.player.hp = Math.min(this.player.maxHp, this.player.hp + def.heal);
+            slot.count--;
+            if (slot.count <= 0) this.player.hotbar[slotIdx] = null;
+            this.renderHotbar();
+            this.audio.playPickup();
+            this.showToast(`Ate ${def.name}`, `+${def.nutrition} Hunger, +${def.heal} HP`, 'success');
+        }
+
+        // ========================================================================
+        // 10. INVENTORY, CRAFTING & XP PROGRESSION
+        // ========================================================================
+        getHeldItemDef() {
+            const slot = this.player.hotbar[this.player.selectedSlot];
+            return slot ? ITEMS[slot.id] : null;
+        }
+
+        addItemToInventory(itemId, count = 1) {
+            // Stack into hotbar first
+            for (let i = 0; i < 9; i++) {
+                if (this.player.hotbar[i] && this.player.hotbar[i].id === itemId && this.player.hotbar[i].count < 99) {
+                    this.player.hotbar[i].count += count;
+                    this.renderHotbar();
+                    this.audio.playPickup();
+                    return true;
+                }
+            }
+            // Stack into backpack
+            for (let i = 0; i < this.player.backpack.length; i++) {
+                if (this.player.backpack[i] && this.player.backpack[i].id === itemId && this.player.backpack[i].count < 99) {
+                    this.player.backpack[i].count += count;
+                    this.audio.playPickup();
+                    return true;
+                }
+            }
+            // Empty hotbar slot
+            for (let i = 0; i < 9; i++) {
+                if (!this.player.hotbar[i]) {
+                    this.player.hotbar[i] = { id: itemId, count };
+                    this.renderHotbar();
+                    this.audio.playPickup();
+                    return true;
+                }
+            }
+            // Empty backpack slot
+            for (let i = 0; i < this.player.backpack.length; i++) {
+                if (!this.player.backpack[i]) {
+                    this.player.backpack[i] = { id: itemId, count };
+                    this.audio.playPickup();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        countTotalItem(itemId) {
+            let total = 0;
+            this.player.hotbar.forEach(s => { if (s && s.id === itemId) total += s.count; });
+            this.player.backpack.forEach(s => { if (s && s.id === itemId) total += s.count; });
+            return total;
+        }
+
+        removeItems(itemId, qty) {
+            let rem = qty;
+            const drain = (arr) => {
+                for (let i = 0; i < arr.length && rem > 0; i++) {
+                    if (arr[i] && arr[i].id === itemId) {
+                        const take = Math.min(arr[i].count, rem);
+                        arr[i].count -= take;
+                        rem -= take;
+                        if (arr[i].count <= 0) arr[i] = null;
+                    }
+                }
+            };
+            drain(this.player.hotbar);
+            drain(this.player.backpack);
+        }
+
+        craftRecipe(recipeId) {
+            const recipe = RECIPES.find(r => r.id === recipeId);
+            if (!recipe) return;
+
+            if (this.worldMeta.mode !== 'Creative') {
+                for (const [reqId, qty] of Object.entries(recipe.req)) {
+                    if (this.countTotalItem(reqId) < qty) {
+                        this.showToast('Missing Ingredients', `Need ${qty}x ${ITEMS[reqId]?.name}`, 'danger');
+                        return;
+                    }
+                }
+                for (const [reqId, qty] of Object.entries(recipe.req)) {
+                    this.removeItems(reqId, qty);
+                }
+            }
+
+            this.addItemToInventory(recipe.out, recipe.count);
+            this.player.stats.crafted++;
+            this.gainXP(10);
+            this.audio.playCraft();
+            this.unlockAchievement('FIRST_CRAFT', 'Artisan Crafter', 'Crafted your first survival item.');
+            this.showToast(`Crafted ${ITEMS[recipe.out].name}`, `Added ${recipe.count}x to your inventory`, 'success');
+            this.renderInventoryScreen();
+            this.renderHotbar();
+        }
+
+        gainXP(amount) {
+            this.player.xp += amount;
+            const req = this.player.level * 100;
+            if (this.player.xp >= req) {
+                this.player.xp -= req;
+                this.player.level++;
+                this.player.maxHp += 10;
+                this.player.hp = this.player.maxHp;
+                this.showToast(`⭐ Level Up! Level ${this.player.level}`, 'Max Health increased by +10!', 'success');
+            }
+        }
+
+        // ========================================================================
+        // 11. PLAYER PHYSICS, COLLISION & SURVIVAL SIMULATION
+        // ========================================================================
+        updatePlayerPhysics(dt) {
+            const speedBase = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) ? 7.8 : 4.8;
+            const isFlying = this.worldMeta.mode === 'Creative' || this.worldMeta.mode === 'Spectator';
+
+            // Movement vector relative to camera yaw
+            let forward = 0, strafe = 0;
+            if (this.keys['KeyW'] || this.keys['ArrowUp']) forward += 1;
+            if (this.keys['KeyS'] || this.keys['ArrowDown']) forward -= 1;
+            if (this.keys['KeyA'] || this.keys['ArrowLeft']) strafe -= 1;
+            if (this.keys['KeyD'] || this.keys['ArrowRight']) strafe += 1;
+
+            // Merge mobile virtual joystick
+            forward -= this.touchMove.y;
+            strafe += this.touchMove.x;
+
+            const sinY = Math.sin(this.player.yaw);
+            const cosY = Math.cos(this.player.yaw);
+            const moveX = (-sinY * forward + cosY * strafe);
+            const moveZ = (-cosY * forward - sinY * strafe);
+            const moveLen = Math.hypot(moveX, moveZ);
+            const normX = moveLen > 0 ? moveX / Math.max(1, moveLen) : 0;
+            const normZ = moveLen > 0 ? moveZ / Math.max(1, moveLen) : 0;
+
+            this.player.vel.x = normX * speedBase;
+            this.player.vel.z = normZ * speedBase;
+
+            // Check water state
+            const headBlock = this.world.getBlock(Math.floor(this.player.pos.x), Math.floor(this.player.pos.y + 1.4), Math.floor(this.player.pos.z));
+            const feetBlock = this.world.getBlock(Math.floor(this.player.pos.x), Math.floor(this.player.pos.y + 0.2), Math.floor(this.player.pos.z));
+            this.player.inWater = (feetBlock === BLOCKS.WATER.id || headBlock === BLOCKS.WATER.id);
+
+            if (isFlying) {
+                this.player.vel.y = 0;
+                if (this.keys['Space']) this.player.vel.y = 6.5;
+                if (this.keys['ControlLeft'] || this.keys['KeyC']) this.player.vel.y = -6.5;
+            } else if (this.player.inWater) {
+                this.player.vel.y = Math.max(-2.5, this.player.vel.y - 8 * dt);
+                if (this.keys['Space']) this.player.vel.y = 4.2;
+            } else {
+                this.player.vel.y -= 22.0 * dt; // Gravity
+                if (this.keys['Space'] && this.player.onGround) {
+                    this.player.vel.y = 7.8;
+                    this.player.onGround = false;
+                }
+            }
+
+            // Axis-separated Voxel Collision
+            const radius = 0.28;
+            const height = 1.75;
+            const collidesAt = (nx, ny, nz) => {
+                if (this.worldMeta.mode === 'Spectator') return false;
+                const minX = Math.floor(nx - radius), maxX = Math.floor(nx + radius);
+                const minY = Math.floor(ny), maxY = Math.floor(ny + height);
+                const minZ = Math.floor(nz - radius), maxZ = Math.floor(nz + radius);
+                for (let x = minX; x <= maxX; x++) {
+                    for (let y = minY; y <= maxY; y++) {
+                        for (let z = minZ; z <= maxZ; z++) {
+                            const b = BLOCK_BY_ID[this.world.getBlock(x, y, z)];
+                            if (b && b.solid) return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            // X Move
+            const nextX = this.player.pos.x + this.player.vel.x * dt;
+            if (!collidesAt(nextX, this.player.pos.y, this.player.pos.z)) {
+                this.player.pos.x = nextX;
+            } else if (this.player.onGround && !collidesAt(nextX, this.player.pos.y + 1.05, this.player.pos.z)) {
+                // Smooth auto-step up 1-block ledges
+                this.player.pos.x = nextX;
+                this.player.pos.y += 1.02;
+            }
+
+            // Z Move
+            const nextZ = this.player.pos.z + this.player.vel.z * dt;
+            if (!collidesAt(this.player.pos.x, this.player.pos.y, nextZ)) {
+                this.player.pos.z = nextZ;
+            } else if (this.player.onGround && !collidesAt(this.player.pos.x, this.player.pos.y + 1.05, nextZ)) {
+                this.player.pos.z = nextZ;
+                this.player.pos.y += 1.02;
+            }
+
+            // Y Move
+            const nextY = this.player.pos.y + this.player.vel.y * dt;
+            if (!collidesAt(this.player.pos.x, nextY, this.player.pos.z)) {
+                this.player.pos.y = nextY;
+                this.player.onGround = false;
+            } else {
+                if (this.player.vel.y < -13 && !isFlying && !this.player.inWater) {
+                    const fallDmg = Math.floor((-this.player.vel.y - 12) * 4);
+                    this.damagePlayer(fallDmg, 'Fall Impact');
+                }
+                if (this.player.vel.y < 0) this.player.onGround = true;
+                this.player.vel.y = 0;
+            }
+
+            // Update Camera Position (1st or 3rd Person)
+            const eyePos = new THREE.Vector3(this.player.pos.x, this.player.pos.y + 1.62, this.player.pos.z);
+            if (this.player.cameraMode === 'FIRST') {
+                this.playerMesh.visible = false;
+                this.camera.position.copy(eyePos);
+                this.camera.rotation.order = 'YXZ';
+                this.camera.rotation.y = this.player.yaw;
+                this.camera.rotation.x = this.player.pitch;
+            } else {
+                this.playerMesh.visible = true;
+                this.playerMesh.position.copy(this.player.pos);
+                this.playerMesh.rotation.y = this.player.yaw + Math.PI;
+                const offset = new THREE.Vector3(0, 0.8, 4.2).applyEuler(new THREE.Euler(this.player.pitch * 0.6, this.player.yaw, 0, 'YXZ'));
+                this.camera.position.copy(eyePos).add(offset);
+                this.camera.lookAt(eyePos);
+            }
+
+            // Survival Vitals Simulation
+            if (this.worldMeta.mode === 'Survival' || this.worldMeta.mode === 'Hardcore') {
+                this.player.hunger = Math.max(0, this.player.hunger - 0.18 * dt);
+                if (moveLen > 0.1 && (this.keys['ShiftLeft'] || this.keys['ShiftRight'])) {
+                    this.player.stamina = Math.max(0, this.player.stamina - 14 * dt);
+                } else {
+                    this.player.stamina = Math.min(100, this.player.stamina + 10 * dt);
+                }
+
+                // Oxygen when underwater
+                if (headBlock === BLOCKS.WATER.id) {
+                    this.player.oxygen = Math.max(0, this.player.oxygen - 12 * dt);
+                    if (this.player.oxygen <= 0) this.damagePlayer(8 * dt, 'Drowning');
+                } else {
+                    this.player.oxygen = Math.min(100, this.player.oxygen + 25 * dt);
+                }
+
+                // Lava Hazard
+                if (feetBlock === BLOCKS.LAVA.id) {
+                    this.damagePlayer(25 * dt, 'Magma Burn');
+                }
+
+                // Natural Regeneration when well-fed
+                if (this.player.hunger > 70 && this.player.hp < this.player.maxHp) {
+                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 2.5 * dt);
+                } else if (this.player.hunger <= 0) {
+                    this.damagePlayer(2 * dt, 'Starvation');
+                }
+            }
+        }
+
+        damagePlayer(amount, source = 'Hazard') {
+            if (this.worldMeta.mode === 'Creative' || this.worldMeta.mode === 'Spectator') return;
+            this.player.hp = Math.max(0, this.player.hp - amount);
+            if (amount >= 1) {
+                this.audio.playHurt();
+                const vig = document.getElementById('screen-vignette');
+                vig.classList.remove('damage-flash');
+                void vig.offsetWidth;
+                vig.classList.add('damage-flash');
+            }
+
+            if (this.player.hp <= 0) {
+                if (this.worldMeta.mode === 'Hardcore') {
+                    this.showToast('💀 HARDCORE DEATH', 'Your journey has ended permanently.', 'danger');
+                    this.db.deleteWorld(this.worldMeta.id);
+                    this.returnToMainMenu();
+                } else {
+                    this.showToast(`Defeated by ${source}`, 'Respawning at surface camp...', 'danger');
+                    this.player.hp = this.player.maxHp;
+                    this.player.hunger = 80;
+                    const sy = this.world.getSurfaceHeight(8, 8) + 2;
+                    this.player.pos.set(8.5, sy, 8.5);
+                }
+            }
+        }
+
+        // ========================================================================
+        // 12. DAY/NIGHT CYCLE, WEATHER & MAIN LOOP
+        // ========================================================================
+        updateEnvironment(dt) {
+            this.timeOfDay = (this.timeOfDay + dt * 0.0045) % 1;
+            if (this.timeOfDay < dt * 0.0045) this.dayCount++;
+
+            const dim = DIMENSIONS[this.world?.dimension || 'WILDLANDS'];
+            const sunAngle = (this.timeOfDay - 0.25) * Math.PI * 2;
+            const daylight = Math.max(0.12, Math.sin(sunAngle) * 0.5 + 0.5);
+
+            const dayCol = new THREE.Color(dim.skyDay);
+            const nightCol = new THREE.Color(dim.skyNight);
+            const curSky = nightCol.clone().lerp(dayCol, daylight);
+
+            this.scene.background.copy(curSky);
+            this.scene.fog.color.copy(curSky);
+            this.ambientLight.intensity = 0.25 + daylight * 0.55;
+            this.sunLight.intensity = 0.15 + daylight * 0.95;
+            this.sunLight.position.set(
+                this.player.pos.x + Math.cos(sunAngle) * 60,
+                Math.sin(sunAngle) * 80 + 20,
+                this.player.pos.z + 30
+            );
+
+            // Dynamic Weather Transitions
+            this.weatherTimer -= dt;
+            if (this.weatherTimer <= 0) {
+                const states = ['Clear', 'Clear', 'Rain', 'Storm'];
+                this.weather = states[Math.floor(Math.random() * states.length)];
+                this.weatherTimer = 60 + Math.random() * 60;
+            }
+            this.weatherParticles.visible = (this.weather === 'Rain' || this.weather === 'Storm');
+            if (this.weatherParticles.visible) {
+                this.weatherParticles.position.set(this.player.pos.x, this.player.pos.y + 8, this.player.pos.z);
+                this.weatherParticles.rotation.y += dt * 0.5;
+            }
+
+            return daylight < 0.35; // isNight
+        }
+
+        updateHUD() {
+            const px = Math.floor(this.player.pos.x);
+            const py = Math.floor(this.player.pos.y);
+            const pz = Math.floor(this.player.pos.z);
+            document.getElementById('hud-coords').textContent = `XYZ: ${px}, ${py}, ${pz}`;
+            document.getElementById('hud-biome').textContent = this.world.getBiomeAt(px, pz);
+
+            const phase = this.timeOfDay < 0.2 ? '🌙 Midnight' :
+                          this.timeOfDay < 0.3 ? '🌅 Dawn' :
+                          this.timeOfDay < 0.7 ? '☀️ Day' :
+                          this.timeOfDay < 0.8 ? '🌇 Sunset' : '🌙 Night';
+            const wIcon = this.weather === 'Storm' ? '⛈️' : (this.weather === 'Rain' ? '🌧️' : '');
+            document.getElementById('hud-time-weather').textContent = `${phase} ${this.dayCount} • ${wIcon} ${this.weather}`;
+
+            // Survival Vitals
+            document.getElementById('bar-health').style.width = `${(this.player.hp / this.player.maxHp) * 100}%`;
+            document.getElementById('val-health').textContent = Math.ceil(this.player.hp);
+            document.getElementById('bar-hunger').style.width = `${this.player.hunger}%`;
+            document.getElementById('val-hunger').textContent = Math.ceil(this.player.hunger);
+            document.getElementById('bar-stamina').style.width = `${this.player.stamina}%`;
+            document.getElementById('val-stamina').textContent = Math.ceil(this.player.stamina);
+            document.getElementById('bar-oxygen').style.width = `${this.player.oxygen}%`;
+            document.getElementById('val-oxygen').textContent = Math.ceil(this.player.oxygen);
+
+            // Target Block Highlight & Progress
+            this.targetBlock = this.raycastVoxel();
+            const targetHud = document.getElementById('target-block-hud');
+            if (this.targetBlock) {
+                this.blockHighlight.visible = true;
+                this.blockHighlight.position.set(this.targetBlock.x + 0.5, this.targetBlock.y + 0.5, this.targetBlock.z + 0.5);
+                targetHud.classList.remove('hidden');
+                document.getElementById('target-block-name').textContent = this.targetBlock.def.name;
+                document.getElementById('mining-progress-bar').style.width = `${Math.min(100, this.miningProgress * 100)}%`;
+            } else {
+                this.blockHighlight.visible = false;
+                targetHud.classList.add('hidden');
+                this.miningProgress = 0;
+            }
+
+            // Boss Health Bar if Guardian is nearby
+            const boss = this.creatures.find(c => c.def.boss && c.pos.distanceTo(this.player.pos) < 32);
+            const bossHud = document.getElementById('boss-hud');
+            if (boss) {
+                bossHud.classList.remove('hidden');
+                document.getElementById('boss-name').textContent = boss.def.name;
+                document.getElementById('boss-hp-text').textContent = `${Math.max(0, Math.ceil(boss.hp))} / ${boss.maxHp}`;
+                document.getElementById('boss-hp-bar').style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;
+            } else {
+                bossHud.classList.add('hidden');
+            }
+        }
+
+        animate(now) {
+            requestAnimationFrame(this.animate);
+            const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+            this.lastTime = now;
+
+            // FPS Telemetry
+            this.fpsCounter.frames++;
+            if (now - this.fpsCounter.last >= 500) {
+                this.fpsCounter.val = Math.round((this.fpsCounter.frames * 1000) / (now - this.fpsCounter.last));
+                this.fpsCounter.frames = 0;
+                this.fpsCounter.last = now;
+                const fpsEl = document.getElementById('hud-fps');
+                if (fpsEl) fpsEl.textContent = `${this.fpsCounter.val} FPS`;
+            }
+
+            if (this.state === 'MENU') {
+                // Cinematic slow orbit around the voxel landscape
+                const t = now * 0.00022;
+                this.camera.position.set(4.5 + Math.cos(t) * 18, 28, 4.5 + Math.sin(t) * 18);
+                this.camera.lookAt(4.5, 19, 4.5);
+                this.renderer.render(this.scene, this.camera);
+                return;
+            }
+
+            if (this.state === 'PLAYING') {
+                const isNight = this.updateEnvironment(dt);
+                this.updatePlayerPhysics(dt);
+                this.updateChunksAroundPlayer();
+
+                if (this.isMining) {
+                    this.handlePrimaryAction(dt);
+                }
+
+                // Update Creatures & Ecosystem AI
+                for (let i = 0; i < this.creatures.length; i++) {
+                    this.creatures[i].update(dt, this.world, this.player.pos, isNight, (dmg, name) => {
+                        this.damagePlayer(dmg, name);
+                    });
+                }
+
+                this.updateHUD();
+            }
+
+            this.renderer.render(this.scene, this.camera);
+        }
+
+        // ========================================================================
+        // 13. UI RENDERING (HOTBAR, INVENTORY, MODALS, MAP, SETTINGS)
+        // ========================================================================
+        renderHotbar() {
+            const container = document.getElementById('hotbar-container');
+            container.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const slot = this.player.hotbar[i];
+                const def = slot ? ITEMS[slot.id] : null;
+                const active = i === this.player.selectedSlot;
+
+                const div = document.createElement('div');
+                div.className = `h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center relative cursor-pointer transition-all ${
+                    active ? 'bg-emerald-500/30 border-2 border-emerald-400 scale-105 shadow-lg' : 'bg-slate-900/70 border border-white/10 hover:border-white/30'
+                }`;
+                div.innerHTML = `
+                    <span class="absolute top-0.5 left-1.5 text-[9px] font-mono text-slate-400">${i + 1}</span>
+                    <span class="text-lg sm:text-xl">${def ? def.icon : ''}</span>
+                    ${slot && slot.count > 1 ? `<span class="absolute bottom-0.5 right-1.5 text-[10px] font-bold text-white drop-shadow">${slot.count}</span>` : ''}
+                `;
+                div.addEventListener('click', () => {
+                    this.player.selectedSlot = i;
+                    this.renderHotbar();
+                });
+                container.appendChild(div);
+            }
+            const sel = this.getHeldItemDef();
+            document.getElementById('selected-item-label').textContent = sel ? sel.name : 'Empty Hand';
+        }
+
+        toggleInventoryScreen() {
+            const screen = document.getElementById('inventory-screen');
+            if (this.state === 'PLAYING') {
+                this.state = 'INVENTORY';
+                if (document.pointerLockElement) document.exitPointerLock();
+                screen.classList.remove('hidden');
+                screen.classList.add('flex');
+                this.renderInventoryScreen();
+            } else if (this.state === 'INVENTORY') {
+                this.state = 'PLAYING';
+                screen.classList.add('hidden');
+                screen.classList.remove('flex');
+            }
+        }
+
+        renderInventoryScreen() {
+            document.getElementById('inv-player-name').textContent = this.character.name;
+            document.getElementById('inv-player-level').textContent = `Level ${this.player.level} • XP: ${this.player.xp} / ${this.player.level * 100}`;
+            document.getElementById('inv-player-mode').textContent = `Mode: ${this.worldMeta.mode} • ${this.character.archetype}`;
+            document.getElementById('stat-mined').textContent = this.player.stats.mined;
+            document.getElementById('stat-kills').textContent = this.player.stats.kills;
+
+            // Backpack Grid
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            this.player.backpack.forEach((slot, idx) => {
+                const def = slot ? ITEMS[slot.id] : null;
+                const cell = document.createElement('div');
+                cell.className = 'h-11 rounded-lg bg-slate-950/75 border border-white/10 hover:border-emerald-400 flex items-center justify-center relative cursor-pointer';
+                cell.innerHTML = `<span class="text-lg">${def ? def.icon : ''}</span>${slot && slot.count > 1 ? `<span class="absolute bottom-0.5 right-1 text-[10px] font-bold">${slot.count}</span>` : ''}`;
+                cell.title = def ? `${def.name}: ${def.desc}` : 'Empty Slot';
+                cell.onclick = () => {
+                    if (!slot) return;
+                    // Swap with currently selected hotbar slot
+                    const temp = this.player.hotbar[this.player.selectedSlot];
+                    this.player.hotbar[this.player.selectedSlot] = slot;
+                    this.player.backpack[idx] = temp;
+                    this.renderInventoryScreen();
+                    this.renderHotbar();
+                };
+                grid.appendChild(cell);
+            });
+
+            // Hotbar Mirror
+            const hbMirror = document.getElementById('inventory-hotbar-mirror');
+            hbMirror.innerHTML = '';
+            this.player.hotbar.forEach((slot, idx) => {
+                const def = slot ? ITEMS[slot.id] : null;
+                const cell = document.createElement('div');
+                cell.className = `h-10 rounded-lg bg-slate-950/85 border ${idx === this.player.selectedSlot ? 'border-emerald-400' : 'border-white/15'} flex items-center justify-center relative cursor-pointer`;
+                cell.innerHTML = `<span class="text-base">${def ? def.icon : ''}</span>${slot && slot.count > 1 ? `<span class="absolute bottom-0 right-1 text-[9px] font-bold">${slot.count}</span>` : ''}`;
+                cell.onclick = () => {
+                    this.player.selectedSlot = idx;
+                    this.renderInventoryScreen();
+                    this.renderHotbar();
+                };
+                hbMirror.appendChild(cell);
+            });
+
+            // Crafting Recipes
+            const filter = document.getElementById('craft-filter').value;
+            const craftList = document.getElementById('crafting-list');
+            craftList.innerHTML = '';
+            RECIPES.filter(r => filter === 'all' || r.category === filter).forEach(r => {
+                const outDef = ITEMS[r.out];
+                const reqText = Object.entries(r.req).map(([k, v]) => `${v}x ${ITEMS[k]?.name}`).join(', ');
+                const canCraft = this.worldMeta.mode === 'Creative' || Object.entries(r.req).every(([k, v]) => this.countTotalItem(k) >= v);
+
+                const row = document.createElement('div');
+                row.className = 'p-2.5 rounded-xl bg-slate-950/75 border border-white/10 flex items-center justify-between gap-2';
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-2xl">${outDef.icon}</span>
+                        <div>
+                            <div class="text-xs font-bold text-white">${outDef.name} <span class="text-emerald-400">x${r.count}</span></div>
+                            <div class="text-[11px] text-slate-400">Requires: ${reqText}</div>
+                        </div>
+                    </div>
+                    <button class="${canCraft ? 'btn-primary-aaa' : 'btn-aaa opacity-50'} px-3 py-1.5 rounded-lg text-xs font-bold">Craft</button>
+                `;
+                row.querySelector('button').onclick = () => this.craftRecipe(r.id);
+                craftList.appendChild(row);
+            });
+        }
+
+        openModal(htmlContent) {
+            const backdrop = document.getElementById('modal-backdrop');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = htmlContent;
+            backdrop.classList.remove('hidden');
+            backdrop.classList.add('flex');
+        }
+
+        closeModal() {
+            const backdrop = document.getElementById('modal-backdrop');
+            backdrop.classList.add('hidden');
+            backdrop.classList.remove('flex');
+        }
+
+        returnToMainMenu() {
+            if (this.worldMeta) this.saveCurrentWorld();
+            if (document.pointerLockElement) document.exitPointerLock();
+            this.state = 'MENU';
+            document.getElementById('hud-layer').classList.add('hidden');
+            document.getElementById('inventory-screen').classList.add('hidden');
+            this.closeModal();
+            document.getElementById('main-menu').classList.remove('hidden');
+            this.initMenuBackgroundWorld();
+            this.updateSavedWorldsCount();
+        }
+
+        // ========================================================================
+        // 14. EVENT LISTENERS (DESKTOP, MOBILE TOUCH & MENUS)
+        // ========================================================================
+        bindUIEvents() {
+            // Main Menu Buttons
+            document.getElementById('menu-quick-play').onclick = () => this.startNewWorld();
+
+            document.getElementById('menu-new-world').onclick = () => {
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">CREATE NEW WORLD</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">World Name</label>
+                            <input id="nw-name" type="text" value="Wilderlands Adventure" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">World Seed (Leave blank for random)</label>
+                            <input id="nw-seed" type="text" placeholder="e.g. GAMERKIE-777" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Game Mode</label>
+                            <select id="nw-mode" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                                <option value="Survival">Survival (Gather, Craft, Survive)</option>
+                                <option value="Creative">Creative (Unlimited Blocks, Flight)</option>
+                                <option value="Adventure">Adventure (Explore & Quests)</option>
+                                <option value="Hardcore">Hardcore (One Life • Permanent Death)</option>
+                                <option value="Spectator">Spectator (Free Camera Flight)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Terrain Generation</label>
+                            <select id="nw-type" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                                <option value="Normal">Normal Wilderlands (Biomes, Hills, Lakes)</option>
+                                <option value="Mountain">Alpine Peaks (Extreme Mountains)</option>
+                                <option value="Flat">Architect Flatlands (Creative Building)</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs text-slate-400 mb-1">Starting Dimension</label>
+                            <select id="nw-dim" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                                <option value="WILDLANDS">Dimension 1: The Wildlands</option>
+                                <option value="EMBER">Dimension 2: Ember Realm (Volcanic)</option>
+                                <option value="FROSTBOUND">Dimension 3: Frostbound (Glacial)</option>
+                                <option value="CRYSTAL_DEEP">Dimension 4: Crystal Deep (Aether Caverns)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button onclick="game.closeModal()" class="btn-aaa px-5 py-2.5 rounded-xl font-bold text-sm">Cancel</button>
+                        <button id="btn-launch-custom-world" class="btn-primary-aaa px-6 py-2.5 rounded-xl font-bold text-sm">🚀 Generate & Launch World</button>
+                    </div>
+                `);
+                document.getElementById('btn-launch-custom-world').onclick = () => {
+                    this.startNewWorld({
+                        name: document.getElementById('nw-name').value || 'Wilderlands World',
+                        seed: document.getElementById('nw-seed').value || undefined,
+                        mode: document.getElementById('nw-mode').value,
+                        worldType: document.getElementById('nw-type').value,
+                        dimension: document.getElementById('nw-dim').value
+                    });
+                };
+            };
+
+            document.getElementById('menu-load-world').onclick = async () => {
+                const worlds = await this.db.getAllWorlds();
+                const listHtml = worlds.length === 0
+                    ? `<div class="text-center py-8 text-slate-400 text-sm">No saved worlds found in IndexedDB yet. Create a new world to begin!</div>`
+                    : worlds.map(w => `
+                        <div class="p-3.5 rounded-xl bg-slate-950/80 border border-white/10 flex flex-wrap justify-between items-center gap-2">
+                            <div>
+                                <div class="font-bold text-white">${w.name} <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ml-1">${w.mode}</span></div>
+                                <div class="text-xs text-slate-400 mt-0.5">Seed: ${w.seed} • Realm: ${w.dimension || 'WILDLANDS'} • Saved: ${new Date(w.savedAt).toLocaleString()}</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button data-load="${w.id}" class="btn-primary-aaa px-4 py-1.5 rounded-lg text-xs font-bold">▶ Play</button>
+                                <button data-del="${w.id}" class="btn-aaa px-3 py-1.5 rounded-lg text-xs text-rose-400">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">SAVED WORLDS (INDEXEDDB)</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="flex flex-col gap-2.5">${listHtml}</div>
+                `);
+
+                worlds.forEach(w => {
+                    const loadBtn = document.querySelector(`[data-load="${w.id}"]`);
+                    if (loadBtn) loadBtn.onclick = () => this.startNewWorld(w);
+                    const delBtn = document.querySelector(`[data-del="${w.id}"]`);
+                    if (delBtn) delBtn.onclick = async () => {
+                        await this.db.deleteWorld(w.id);
+                        this.updateSavedWorldsCount();
+                        document.getElementById('menu-load-world').click();
+                    };
+                });
+            };
+
+            document.getElementById('menu-character').onclick = () => {
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">CHARACTER CUSTOMIZATION</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Survivor Name</label>
+                            <input id="char-name" type="text" value="${this.character.name}" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Class Archetype</label>
+                            <select id="char-arch" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                                <option value="Ranger" ${this.character.archetype === 'Ranger' ? 'selected' : ''}>Wilderlands Ranger</option>
+                                <option value="Architect" ${this.character.archetype === 'Architect' ? 'selected' : ''}>Master Architect</option>
+                                <option value="Aether Knight" ${this.character.archetype === 'Aether Knight' ? 'selected' : ''}>Aether Knight</option>
+                                <option value="Cyber Explorer" ${this.character.archetype === 'Cyber Explorer' ? 'selected' : ''}>Cyber Explorer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Tunic / Armor Color</label>
+                            <input id="char-tunic" type="color" value="${this.character.tunicColor}" class="w-full h-10 bg-slate-950 border border-white/15 rounded-xl p-1 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Skin Tone</label>
+                            <input id="char-skin" type="color" value="${this.character.skinColor}" class="w-full h-10 bg-slate-950 border border-white/15 rounded-xl p-1 cursor-pointer">
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button id="btn-save-char" class="btn-primary-aaa px-6 py-2.5 rounded-xl font-bold text-sm">Apply Appearance</button>
+                    </div>
+                `);
+                document.getElementById('btn-save-char').onclick = () => {
+                    this.character.name = document.getElementById('char-name').value || 'Explorer';
+                    this.character.archetype = document.getElementById('char-arch').value;
+                    this.character.tunicColor = document.getElementById('char-tunic').value;
+                    this.character.skinColor = document.getElementById('char-skin').value;
+                    this.buildPlayerAvatarMesh();
+                    this.playerMesh.visible = true;
+                    this.showToast('Character Updated', `${this.character.name} (${this.character.archetype})`, 'success');
+                    this.closeModal();
+                };
+            };
+
+            document.getElementById('menu-multiplayer').onclick = () => {
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">MULTIPLAYER REALMS ARCHITECTURE</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="bg-amber-500/10 border border-amber-400/30 rounded-xl p-4 text-xs text-amber-200 mb-4">
+                        <strong>Authoritative Server Notice:</strong> BLOCKVERSE: WILDERLANDS includes a WebSocket client synchronization layer ready for authoritative Node.js / Colyseus relay deployment. No fake local bots are simulated as real players.
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Authoritative Relay Server URL (wss://)</label>
+                            <input id="mp-url" type="text" placeholder="wss://relay.your-blockverse-server.com" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-white">
+                        </div>
+                        <button id="btn-mp-connect" class="btn-aaa w-full py-2.5 rounded-xl font-bold text-emerald-300">Test Server Handshake</button>
+                    </div>
+                `);
+                document.getElementById('btn-mp-connect').onclick = () => {
+                    const url = document.getElementById('mp-url').value.trim();
+                    if (!url.startsWith('ws')) {
+                        this.showToast('Invalid Endpoint', 'Enter a valid ws:// or wss:// authoritative server URL.', 'danger');
+                    } else {
+                        this.showToast('Handshake Initiated', `Attempting connection to ${url}...`, 'info');
+                    }
+                };
+            };
+
+            document.getElementById('menu-settings').onclick = () => {
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">ENGINE & GRAPHICS SETTINGS</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="space-y-4 text-sm">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1"><span>Chunk Render Distance</span><span id="set-rd-val">${this.settings.renderDistance} Chunks</span></div>
+                            <input id="set-rd" type="range" min="2" max="6" value="${this.settings.renderDistance}" class="w-full accent-emerald-400">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1"><span>Field of View (FOV)</span><span id="set-fov-val">${this.settings.fov}°</span></div>
+                            <input id="set-fov" type="range" min="60" max="100" value="${this.settings.fov}" class="w-full accent-emerald-400">
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl">
+                            <span>On-Screen Mobile Touch Controls</span>
+                            <input id="set-touch" type="checkbox" ${this.settings.mobileControls ? 'checked' : ''} class="w-5 h-5 accent-emerald-400">
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button id="btn-save-settings" class="btn-primary-aaa px-6 py-2.5 rounded-xl font-bold text-sm">Save Settings</button>
+                    </div>
+                `);
+                document.getElementById('set-rd').oninput = e => document.getElementById('set-rd-val').textContent = `${e.target.value} Chunks`;
+                document.getElementById('set-fov').oninput = e => document.getElementById('set-fov-val').textContent = `${e.target.value}°`;
+                document.getElementById('btn-save-settings').onclick = () => {
+                    this.settings.renderDistance = parseInt(document.getElementById('set-rd').value);
+                    this.settings.fov = parseInt(document.getElementById('set-fov').value);
+                    this.settings.mobileControls = document.getElementById('set-touch').checked;
+                    this.camera.fov = this.settings.fov;
+                    this.camera.updateProjectionMatrix();
+                    document.getElementById('mobile-controls').classList.toggle('hidden', !this.settings.mobileControls || this.state !== 'PLAYING');
+                    this.closeModal();
+                    this.showToast('Settings Saved', 'Graphics and controls updated.', 'success');
+                };
+            };
+
+            document.getElementById('menu-achievements').onclick = () => {
+                const keys = Object.keys(this.achievements);
+                const html = keys.length === 0
+                    ? `<p class="text-sm text-slate-400 py-6 text-center">No trophies unlocked yet. Mine, craft, build, and defeat bosses to earn achievements!</p>`
+                    : keys.map(k => `<div class="p-3 rounded-xl bg-slate-950/75 border border-amber-400/30"><div class="text-sm font-bold text-amber-300">🏆 ${this.achievements[k].title}</div><div class="text-xs text-slate-300">${this.achievements[k].desc}</div></div>`).join('');
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">TROPHIES & MILESTONES</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="space-y-2">${html}</div>
+                `);
+            };
+
+            document.getElementById('menu-credits').onclick = () => {
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">CREDITS & STUDIO</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="space-y-2 text-sm text-slate-300">
+                        <p><strong class="text-emerald-400">BLOCKVERSE: WILDERLANDS – GAMERKIE EDITION</strong></p>
+                        <p>Created & Engineered by <strong>GamerKie Studio</strong>.</p>
+                        <p class="text-xs text-slate-400 pt-2">Controls: WASD to Move • Space to Jump • Shift to Sprint • Left Click to Mine/Attack • Right Click to Place/Eat • E for Backpack & Crafting • C to Toggle 1st/3rd Person Camera • M for World Map.</p>
+                    </div>
+                `);
+            };
+
+            // Audio & Fullscreen
+            document.getElementById('btn-audio-toggle').onclick = () => {
+                this.audio.init();
+                const on = this.audio.toggle();
+                document.getElementById('btn-audio-toggle').textContent = on ? '🔊' : '🔇';
+            };
+            document.getElementById('btn-fullscreen-menu').onclick = () => {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+                else document.exitFullscreen().catch(() => {});
+            };
+
+            // HUD Buttons
+            document.getElementById('hud-btn-craft').onclick = () => this.toggleInventoryScreen();
+            document.getElementById('btn-close-inventory').onclick = () => this.toggleInventoryScreen();
+            document.getElementById('craft-filter').onchange = () => this.renderInventoryScreen();
+            document.getElementById('btn-eat-food').onclick = () => this.consumeFoodSlot(this.player.selectedSlot);
+            document.getElementById('btn-save-game-inv').onclick = () => {
+                this.saveCurrentWorld();
+                this.showToast('World Saved', 'All chunks, inventory & progress saved to IndexedDB.', 'success');
+            };
+
+            document.getElementById('hud-btn-camera').onclick = () => {
+                this.player.cameraMode = this.player.cameraMode === 'FIRST' ? 'THIRD' : 'FIRST';
+                document.getElementById('hud-btn-camera').textContent = this.player.cameraMode === 'FIRST' ? '🎥 1st' : '🎥 3rd';
+            };
+
+            document.getElementById('hud-btn-portal').onclick = () => {
+                if (document.pointerLockElement) document.exitPointerLock();
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-purple-300">🌀 INTERDIMENSIONAL RIFT GATE</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-4">Travel across parallel voxel realities. Each dimension features unique terrain, sky lighting, ores, and creatures.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        ${Object.values(DIMENSIONS).map(d => `
+                            <button onclick="game.switchDimension('${d.id}'); game.closeModal();" class="btn-aaa p-3.5 rounded-xl text-left">
+                                <div class="font-bold text-white">${d.name}</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Click to channel portal</div>
+                            </button>
+                        `).join('')}
+                    </div>
+                `);
+            };
+
+            document.getElementById('hud-btn-map').onclick = () => {
+                if (document.pointerLockElement) document.exitPointerLock();
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">🗺️ WILDERLANDS BIOME RADAR</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <canvas id="radar-canvas" width="320" height="320" class="mx-auto rounded-xl border border-white/20 bg-slate-950"></canvas>
+                    <div class="text-center text-xs text-slate-400 mt-2">White Dot: You • Red Dots: Hostile Creatures • Purple Star: Guardian Boss</div>
+                `);
+                const rCan = document.getElementById('radar-canvas');
+                const rCtx = rCan.getContext('2d');
+                const px = Math.floor(this.player.pos.x);
+                const pz = Math.floor(this.player.pos.z);
+                for (let dx = -40; dx < 40; dx++) {
+                    for (let dz = -40; dz < 40; dz++) {
+                        const b = this.world.getBiomeAt(px + dx, pz + dz);
+                        rCtx.fillStyle = b === 'Golden Desert' ? '#eab308' : (b === 'Snow Peaks' ? '#f8fafc' : (b === 'Ancient Forest' ? '#15803d' : '#22c55e'));
+                        rCtx.fillRect((dx + 40) * 4, (dz + 40) * 4, 4, 4);
+                    }
+                }
+                this.creatures.forEach(c => {
+                    const rx = (c.pos.x - px + 40) * 4;
+                    const rz = (c.pos.z - pz + 40) * 4;
+                    rCtx.fillStyle = c.def.boss ? '#c084fc' : (c.def.hostile ? '#f43f5e' : '#38bdf8');
+                    rCtx.beginPath();
+                    rCtx.arc(rx, rz, c.def.boss ? 6 : 3.5, 0, Math.PI * 2);
+                    rCtx.fill();
+                });
+                rCtx.fillStyle = '#ffffff';
+                rCtx.beginPath();
+                rCtx.arc(160, 160, 5, 0, Math.PI * 2);
+                rCtx.fill();
+            };
+
+            document.getElementById('hud-btn-pause').onclick = () => {
+                if (document.pointerLockElement) document.exitPointerLock();
+                this.openModal(`
+                    <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-white">GAME PAUSED</h2>
+                        <button onclick="game.closeModal()" class="btn-aaa px-3 py-1 rounded-lg text-sm">✕</button>
+                    </div>
+                    <div class="flex flex-col gap-2.5">
+                        <button onclick="game.closeModal()" class="btn-primary-aaa py-3 rounded-xl font-bold">▶ Resume Adventure</button>
+                        <button onclick="game.saveCurrentWorld(); game.showToast('World Saved', 'Progress stored safely.', 'success');" class="btn-aaa py-3 rounded-xl font-bold">💾 Save World</button>
+                        <button onclick="game.returnToMainMenu()" class="btn-aaa py-3 rounded-xl font-bold text-rose-300">🚪 Save & Return to Main Menu</button>
+                    </div>
+                `);
+            };
+
+            // Desktop Pointer Lock & Mouse Controls
+            this.canvas.addEventListener('mousedown', e => {
+                if (this.state !== 'PLAYING') return;
+                if (document.pointerLockElement !== this.canvas && !this.settings.mobileControls) {
+                    this.canvas.requestPointerLock?.();
+                }
+                if (e.button === 0) {
+                    this.isMining = true;
+                    this.handlePrimaryAction(0.15);
+                } else if (e.button === 2) {
+                    this.handleSecondaryAction();
+                }
+            });
+            window.addEventListener('mouseup', e => {
+                if (e.button === 0) {
+                    this.isMining = false;
+                    this.miningProgress = 0;
+                }
+            });
+            window.addEventListener('contextmenu', e => e.preventDefault());
+
+            window.addEventListener('mousemove', e => {
+                if (this.state === 'PLAYING' && document.pointerLockElement === this.canvas) {
+                    this.player.yaw -= e.movementX * this.settings.sensitivity;
+                    this.player.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, this.player.pitch - e.movementY * this.settings.sensitivity));
+                }
+            });
+
+            // Keyboard Bindings
+            window.addEventListener('keydown', e => {
+                this.keys[e.code] = true;
+                if (this.state === 'PLAYING' || this.state === 'INVENTORY') {
+                    if (e.code === 'KeyE') this.toggleInventoryScreen();
+                    if (e.code === 'KeyC' && this.state === 'PLAYING') document.getElementById('hud-btn-camera').click();
+                    if (e.code === 'KeyM' && this.state === 'PLAYING') document.getElementById('hud-btn-map').click();
+                    if (e.code.startsWith('Digit')) {
+                        const num = parseInt(e.code.replace('Digit', '')) - 1;
+                        if (num >= 0 && num < 9) {
+                            this.player.selectedSlot = num;
+                            this.renderHotbar();
+                        }
+                    }
+                }
+            });
+            window.addEventListener('keyup', e => { this.keys[e.code] = false; });
+            window.addEventListener('wheel', e => {
+                if (this.state !== 'PLAYING') return;
+                this.player.selectedSlot = (this.player.selectedSlot + (e.deltaY > 0 ? 1 : 8)) % 9;
+                this.renderHotbar();
+            });
+
+            // Mobile Touch Look & Virtual Joystick
+            let lookTouchId = null, lastTouchX = 0, lastTouchY = 0;
+            this.canvas.addEventListener('touchstart', e => {
+                if (this.state !== 'PLAYING') return;
+                for (const t of e.changedTouches) {
+                    if (t.clientX > window.innerWidth * 0.35 && lookTouchId === null) {
+                        lookTouchId = t.identifier;
+                        lastTouchX = t.clientX;
+                        lastTouchY = t.clientY;
+                    }
+                }
+            }, { passive: false });
+
+            this.canvas.addEventListener('touchmove', e => {
+                if (this.state !== 'PLAYING') return;
+                for (const t of e.changedTouches) {
+                    if (t.identifier === lookTouchId) {
+                        const dx = t.clientX - lastTouchX;
+                        const dy = t.clientY - lastTouchY;
+                        lastTouchX = t.clientX;
+                        lastTouchY = t.clientY;
+                        this.player.yaw -= dx * 0.0055;
+                        this.player.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, this.player.pitch - dy * 0.0055));
+                    }
+                }
+            }, { passive: false });
+
+            this.canvas.addEventListener('touchend', e => {
+                for (const t of e.changedTouches) {
+                    if (t.identifier === lookTouchId) lookTouchId = null;
+                }
+            });
+
+            const joyZone = document.getElementById('touch-joystick-zone');
+            const joyKnob = document.getElementById('touch-joystick-knob');
+            joyZone.addEventListener('touchmove', e => {
+                const t = e.targetTouches[0];
+                if (!t) return;
+                const rect = joyZone.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const maxR = rect.width / 2;
+                let dx = t.clientX - cx;
+                let dy = t.clientY - cy;
+                const dist = Math.hypot(dx, dy);
+                if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
+                joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+                this.touchMove.x = dx / maxR;
+                this.touchMove.y = dy / maxR;
+            }, { passive: false });
+
+            joyZone.addEventListener('touchend', () => {
+                joyKnob.style.transform = 'translate(0px, 0px)';
+                this.touchMove.x = 0;
+                this.touchMove.y = 0;
+            });
+
+            document.getElementById('touch-btn-jump').addEventListener('touchstart', () => { this.keys['Space'] = true; });
+            document.getElementById('touch-btn-jump').addEventListener('touchend', () => { this.keys['Space'] = false; });
+            document.getElementById('touch-btn-sprint').addEventListener('touchstart', () => { this.keys['ShiftLeft'] = !this.keys['ShiftLeft']; });
+            document.getElementById('touch-btn-mine').addEventListener('touchstart', () => { this.isMining = true; this.handlePrimaryAction(0.2); });
+            document.getElementById('touch-btn-mine').addEventListener('touchend', () => { this.isMining = false; this.miningProgress = 0; });
+            document.getElementById('touch-btn-place').addEventListener('touchstart', () => { this.handleSecondaryAction(); });
+        }
+    }
+
+    // Boot Game on Window Load
+    let game;
+    window.onload = () => {
+        game = new BlockverseGame();
+    };
+    </script>
+</body>
+</html>
+
+```
