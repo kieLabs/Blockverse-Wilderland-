@@ -119,9 +119,40 @@
         .damage-flash {
             animation: damagePulse 0.45s ease-out;
         }
+
+        /* Automatic Landscape Enforcement & Blogger Iframe Fit */
+        @media screen and (orientation: portrait) and (max-width: 900px) {
+            body.enforce-landscape #landscape-overlay {
+                display: flex !important;
+            }
+        }
+        @keyframes rotatePhoneAnim {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-90deg); }
+        }
+        .rotate-phone-icon {
+            animation: rotatePhoneAnim 1.8s ease-in-out infinite;
+        }
     </style>
 </head>
-<body>
+<body class="enforce-landscape">
+
+    <!-- Automatic Landscape Guidance Overlay for Portrait Mobile Screens -->
+    <div id="landscape-overlay" class="fixed inset-0 z-[100] hidden flex-col items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl text-center">
+        <div class="text-6xl mb-4 rotate-phone-icon">📱</div>
+        <h2 class="text-2xl font-extrabold text-white tracking-wide mb-2">LANDSCAPE MODE RECOMMENDED</h2>
+        <p class="text-sm text-slate-300 max-w-xs mb-6">
+            Rotate your device horizontally or tap below to enter Fullscreen Landscape mode for the best AAA 3D voxel experience.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <button id="btn-force-landscape" class="btn-primary-aaa px-6 py-3 rounded-xl font-bold text-sm">
+                🔄 Enter Fullscreen Landscape
+            </button>
+            <button id="btn-dismiss-landscape" class="btn-aaa px-5 py-3 rounded-xl font-bold text-xs text-slate-300">
+                Continue Anyway
+            </button>
+        </div>
+    </div>
 
     <!-- 3D Viewport Canvas -->
     <canvas id="game-canvas"></canvas>
@@ -2294,7 +2325,32 @@
         // ========================================================================
         bindUIEvents() {
             // Main Menu Buttons
-            document.getElementById('menu-quick-play').onclick = () => this.startNewWorld();
+            document.getElementById('menu-quick-play').onclick = () => {
+                this.requestLandscapeFullscreen();
+                this.startNewWorld();
+            };
+
+            // Automatic Landscape & Fullscreen Activation Helper for Blogger/Web Embeds
+            const forceLandscapeBtn = document.getElementById('btn-force-landscape');
+            if (forceLandscapeBtn) {
+                forceLandscapeBtn.onclick = () => this.requestLandscapeFullscreen();
+            }
+            const dismissLandscapeBtn = document.getElementById('btn-dismiss-landscape');
+            if (dismissLandscapeBtn) {
+                dismissLandscapeBtn.onclick = () => {
+                    document.body.classList.remove('enforce-landscape');
+                    document.getElementById('landscape-overlay').style.display = 'none';
+                };
+            }
+
+            // Auto-trigger landscape lock on first user tap/click inside the embedded post
+            const autoEngageLandscape = () => {
+                if (this.settings.mobileControls && window.innerHeight > window.innerWidth) {
+                    this.requestLandscapeFullscreen();
+                }
+                window.removeEventListener('pointerdown', autoEngageLandscape);
+            };
+            window.addEventListener('pointerdown', autoEngageLandscape, { once: true });
 
             document.getElementById('menu-new-world').onclick = () => {
                 this.openModal(`
@@ -2739,6 +2795,26 @@
             document.getElementById('touch-btn-mine').addEventListener('touchstart', () => { this.isMining = true; this.handlePrimaryAction(0.2); });
             document.getElementById('touch-btn-mine').addEventListener('touchend', () => { this.isMining = false; this.miningProgress = 0; });
             document.getElementById('touch-btn-place').addEventListener('touchstart', () => { this.handleSecondaryAction(); });
+        }
+
+        async requestLandscapeFullscreen() {
+            try {
+                const docEl = document.documentElement;
+                if (!document.fullscreenElement) {
+                    if (docEl.requestFullscreen) await docEl.requestFullscreen();
+                    else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+                }
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape').catch(() => {});
+                }
+            } catch (err) {
+                // Gracefully fallback if embedded in restricted iframe without allowfullscreen
+            }
+            setTimeout(() => {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }, 250);
         }
     }
 
