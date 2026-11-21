@@ -256,48 +256,48 @@
         <div id="crosshair"></div>
 
         <!-- Top Bar: Biome, Coordinates, Time, Weather, FPS, Menu Buttons -->
-        <div class="flex justify-between items-start p-3 sm:p-4">
-            <!-- Left Telemetry Pill -->
-            <div class="glass-panel rounded-xl px-3.5 py-2 flex flex-wrap items-center gap-3 text-xs sm:text-sm pointer-events-auto">
+        <div class="flex justify-between items-center gap-2 p-2 sm:p-4">
+            <!-- Left Telemetry Pill (Single-line compact on mobile landscape) -->
+            <div class="glass-panel rounded-xl px-2.5 py-1.5 sm:px-3.5 sm:py-2 flex items-center gap-2 sm:gap-3 text-[11px] sm:text-sm pointer-events-auto overflow-x-auto whitespace-nowrap max-w-[62vw] sm:max-w-none">
                 <div class="flex items-center gap-1.5">
-                    <span id="hud-dimension-badge" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-xs">THE WILDLANDS</span>
+                    <span id="hud-dimension-badge" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-xs">THE WILDLANDS</span>
                     <span id="hud-biome" class="font-semibold text-white">Green Plains</span>
                 </div>
                 <span class="text-slate-500">|</span>
-                <div id="hud-coords" class="font-mono text-slate-300 text-xs">XYZ: 0, 0, 0</div>
-                <span class="text-slate-500 hidden sm:inline">|</span>
-                <div id="hud-time-weather" class="text-amber-300 font-medium text-xs sm:text-sm">☀️ Day 1 • Clear</div>
-                <span class="text-slate-500 hidden md:inline">|</span>
-                <div id="hud-fps" class="font-mono text-emerald-400 text-xs hidden md:block">60 FPS</div>
+                <div id="hud-coords" class="font-mono text-slate-300 text-[10px] sm:text-xs">XYZ: 0, 0, 0</div>
+                <span class="text-slate-500">|</span>
+                <div id="hud-time-weather" class="text-amber-300 font-medium text-[10px] sm:text-xs">☀️ Day 1 • Clear</div>
+                <span class="text-slate-500">|</span>
+                <div id="hud-fps" class="font-mono text-emerald-400 text-[10px] sm:text-xs">60 FPS</div>
             </div>
 
             <!-- Right Quick Action Buttons -->
-            <div class="flex items-center gap-2 pointer-events-auto">
-                <button id="hud-btn-portal" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold text-purple-300 border-purple-500/40" title="Dimension Gate">
+            <div class="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
+                <button id="hud-btn-portal" class="btn-aaa px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold text-purple-300 border-purple-500/40" title="Dimension Gate">
                     🌀 Realm
                 </button>
-                <button id="hud-btn-camera" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold" title="Toggle Camera (C)">
+                <button id="hud-btn-camera" class="btn-aaa px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold" title="Toggle Camera (C)">
                     🎥 1st
                 </button>
-                <button id="hud-btn-map" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold" title="World Map (M)">
+                <button id="hud-btn-map" class="btn-aaa px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold" title="World Map (M)">
                     🗺️ Map
                 </button>
-                <button id="hud-btn-craft" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold text-amber-300" title="Crafting & Inventory (E)">
+                <button id="hud-btn-craft" class="btn-aaa px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold text-amber-300" title="Crafting & Inventory (E)">
                     🎒 Bag
                 </button>
-                <button id="hud-btn-pause" class="btn-aaa px-3 py-2 rounded-xl text-xs font-bold" title="Pause (Esc)">
+                <button id="hud-btn-pause" class="btn-aaa px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold" title="Pause (Esc)">
                     ⏸️
                 </button>
             </div>
         </div>
 
-        <!-- Boss Bar (Visible during Boss Encounters) -->
-        <div id="boss-hud" class="hidden mx-auto max-w-lg w-11/12 mt-1 glass-panel rounded-xl p-2.5 border-rose-500/40">
-            <div class="flex justify-between text-xs font-bold uppercase tracking-wider text-rose-300 mb-1">
-                <span id="boss-name">ANCIENT FOREST GUARDIAN</span>
-                <span id="boss-hp-text">500 / 500</span>
+        <!-- Boss Bar (Centered cleanly below top bar without overlapping side quests) -->
+        <div id="boss-hud" class="hidden mx-auto max-w-sm sm:max-w-md w-7/12 sm:w-11/12 mt-0.5 glass-panel rounded-xl px-3 py-1.5 sm:p-2.5 border-rose-500/40">
+            <div class="flex justify-between text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-300 mb-1">
+                <span id="boss-name" class="truncate pr-2">ANCIENT FOREST GUARDIAN</span>
+                <span id="boss-hp-text" class="shrink-0">350 / 350</span>
             </div>
-            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+            <div class="w-full h-2 sm:h-2.5 bg-slate-900 rounded-full overflow-hidden">
                 <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all duration-150" style="width: 100%"></div>
             </div>
         </div>
@@ -310,11 +310,16 @@
             </div>
         </div>
 
-        <!-- Active Quest / Milestone Tracker -->
-        <div id="quest-tracker" class="hidden sm:block fixed left-4 top-20 glass-panel rounded-xl p-3 max-w-xs border-l-4 border-l-amber-400">
-            <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold">Active Objective</div>
-            <div id="quest-title" class="text-sm font-bold text-white mt-0.5">Gather Timber & Stone</div>
-            <div id="quest-desc" class="text-xs text-slate-300 mt-0.5">Mine 4 Wood Logs to craft a Crafting Table & Pickaxe.</div>
+        <!-- Active Quest / Milestone Tracker (Compact & Collapsible on Mobile Landscape) -->
+        <div id="quest-tracker" class="fixed left-2 sm:left-4 top-14 sm:top-20 glass-panel rounded-xl p-2 sm:p-3 max-w-[165px] sm:max-w-xs border-l-4 border-l-amber-400 pointer-events-auto transition-all">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-[9px] sm:text-[10px] uppercase tracking-wider text-amber-300 font-bold">Objective</span>
+                <button id="btn-toggle-quest" class="text-[10px] text-slate-400 hover:text-white px-1" title="Minimize/Expand Objective">▾</button>
+            </div>
+            <div id="quest-body">
+                <div id="quest-title" class="text-xs sm:text-sm font-bold text-white mt-0.5 leading-tight">Gather Timber & Stone</div>
+                <div id="quest-desc" class="text-[10px] sm:text-xs text-slate-300 mt-0.5 leading-snug">Mine 4 blocks to begin crafting tools. (0/4)</div>
+            </div>
         </div>
 
         <!-- Bottom Status Bars + Hotbar -->
@@ -2131,96 +2136,27 @@
             } else {
                 bossHud.classList.add('hidden');
             }
-        }
 
-        animate(now) {
-            requestAnimationFrame(this.animate);
-            const dt = Math.min(0.05, (now - this.lastTime) / 1000);
-            this.lastTime = now;
-
-            // FPS Telemetry
-            this.fpsCounter.frames++;
-            if (now - this.fpsCounter.last >= 500) {
-                this.fpsCounter.val = Math.round((this.fpsCounter.frames * 1000) / (now - this.fpsCounter.last));
-                this.fpsCounter.frames = 0;
-                this.fpsCounter.last = now;
-                const fpsEl = document.getElementById('hud-fps');
-                if (fpsEl) fpsEl.textContent = `${this.fpsCounter.val} FPS`;
-            }
-
-            if (this.state === 'MENU') {
-                // Cinematic slow orbit around the voxel landscape
-                const t = now * 0.00022;
-                this.camera.position.set(4.5 + Math.cos(t) * 18, 28, 4.5 + Math.sin(t) * 18);
-                this.camera.lookAt(4.5, 19, 4.5);
-                this.renderer.render(this.scene, this.camera);
-                return;
-            }
-
-            if (this.state === 'PLAYING') {
-                const isNight = this.updateEnvironment(dt);
-                this.updatePlayerPhysics(dt);
-                this.updateChunksAroundPlayer();
-
-                if (this.isMining) {
-                    this.handlePrimaryAction(dt);
+            // Dynamic Quest Tracker Progression
+            const qTitle = document.getElementById('quest-title');
+            const qDesc = document.getElementById('quest-desc');
+            if (qTitle && qDesc) {
+                if (this.player.stats.mined < 4) {
+                    qTitle.textContent = 'Gather Resources';
+                    qDesc.textContent = `Mine 4 blocks of wood or stone (${this.player.stats.mined}/4)`;
+                } else if (this.player.stats.crafted < 1) {
+                    qTitle.textContent = 'Craft Survival Gear';
+                    qDesc.textContent = 'Open Bag (🎒) and craft a tool or planks.';
+                } else if (this.player.stats.placed < 3) {
+                    qTitle.textContent = 'Build Shelter';
+                    qDesc.textContent = `Place 3 construction blocks (${this.player.stats.placed}/3)`;
+                } else if (this.player.stats.kills < 1) {
+                    qTitle.textContent = 'Defend the Frontier';
+                    qDesc.textContent = 'Defeat a hostile creature or the Forest Guardian.';
+                } else {
+                    qTitle.textContent = 'Realm Explorer';
+                    qDesc.textContent = 'Open the 🌀 Realm Gate to explore new dimensions!';
                 }
-
-                // Update Creatures & Ecosystem AI
-                for (let i = 0; i < this.creatures.length; i++) {
-                    this.creatures[i].update(dt, this.world, this.player.pos, isNight, (dmg, name) => {
-                        this.damagePlayer(dmg, name);
-                    });
-                }
-
-                this.updateHUD();
-            }
-
-            this.renderer.render(this.scene, this.camera);
-        }
-
-        // ========================================================================
-        // 13. UI RENDERING (HOTBAR, INVENTORY, MODALS, MAP, SETTINGS)
-        // ========================================================================
-        renderHotbar() {
-            const container = document.getElementById('hotbar-container');
-            container.innerHTML = '';
-            for (let i = 0; i < 9; i++) {
-                const slot = this.player.hotbar[i];
-                const def = slot ? ITEMS[slot.id] : null;
-                const active = i === this.player.selectedSlot;
-
-                const div = document.createElement('div');
-                div.className = `h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center relative cursor-pointer transition-all ${
-                    active ? 'bg-emerald-500/30 border-2 border-emerald-400 scale-105 shadow-lg' : 'bg-slate-900/70 border border-white/10 hover:border-white/30'
-                }`;
-                div.innerHTML = `
-                    <span class="absolute top-0.5 left-1.5 text-[9px] font-mono text-slate-400">${i + 1}</span>
-                    <span class="text-lg sm:text-xl">${def ? def.icon : ''}</span>
-                    ${slot && slot.count > 1 ? `<span class="absolute bottom-0.5 right-1.5 text-[10px] font-bold text-white drop-shadow">${slot.count}</span>` : ''}
-                `;
-                div.addEventListener('click', () => {
-                    this.player.selectedSlot = i;
-                    this.renderHotbar();
-                });
-                container.appendChild(div);
-            }
-            const sel = this.getHeldItemDef();
-            document.getElementById('selected-item-label').textContent = sel ? sel.name : 'Empty Hand';
-        }
-
-        toggleInventoryScreen() {
-            const screen = document.getElementById('inventory-screen');
-            if (this.state === 'PLAYING') {
-                this.state = 'INVENTORY';
-                if (document.pointerLockElement) document.exitPointerLock();
-                screen.classList.remove('hidden');
-                screen.classList.add('flex');
-                this.renderInventoryScreen();
-            } else if (this.state === 'INVENTORY') {
-                this.state = 'PLAYING';
-                screen.classList.add('hidden');
-                screen.classList.remove('flex');
             }
         }
 
@@ -2598,6 +2534,14 @@
             };
 
             // HUD Buttons
+            const toggleQuestBtn = document.getElementById('btn-toggle-quest');
+            if (toggleQuestBtn) {
+                toggleQuestBtn.onclick = () => {
+                    const body = document.getElementById('quest-body');
+                    const hidden = body.classList.toggle('hidden');
+                    toggleQuestBtn.textContent = hidden ? '▸' : '▾';
+                };
+            }
             document.getElementById('hud-btn-craft').onclick = () => this.toggleInventoryScreen();
             document.getElementById('btn-close-inventory').onclick = () => this.toggleInventoryScreen();
             document.getElementById('craft-filter').onchange = () => this.renderInventoryScreen();
